@@ -11,7 +11,7 @@ from model import RobertaForSimilarityClassification
 from utils.encoder import Encoder
 from utils.metric import compute_metrics
 from utils.collator import DataCollatorWithPadding
-from utils.preprocessor import Preprocessor, BlockDeleter
+from utils.preprocessor import Preprocessor
 from sklearn.model_selection import StratifiedKFold
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -76,7 +76,8 @@ def main():
                 _LR:{training_args.learning_rate}\
                 _BS:{training_args.per_device_train_batch_size}\
                 _WR:{training_args.warmup_ratio}\
-                _WD:{training_args.weight_decay}"
+                _WD:{training_args.weight_decay}\
+                _{i+1}fold"
         
             wandb.init(
                 entity="sangha0411",

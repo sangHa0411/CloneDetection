@@ -66,11 +66,11 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
             return_dict=return_dict,
         )
         
-        code1_sequence_output = outputs1[1].unsqueeze(1) # (batch_size, 1, seq_size)
-        code2_sequence_output = outputs2[1].unsqueeze(-1) # (batch_size, seq_size, -1)
+        code1_sequence_output = outputs1[1].unsqueeze(1)
+        code2_sequence_output = outputs2[1].unsqueeze(-1)
 
         code_similarity_output = torch.matmul(code1_sequence_output, code2_sequence_output)
-        logits = code_similarity_output.squeeze() # (batch_size, )
+        logits = code_similarity_output.squeeze()
         
         loss = None
         if labels is not None:
