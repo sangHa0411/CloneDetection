@@ -66,7 +66,7 @@ def main():
         skf = StratifiedKFold(n_splits=training_args.fold_size, shuffle=True)
 
         for i, (train_idx, valid_idx) in enumerate(skf.split(dset, dset['labels'])):
-            model = model_class.from_pretrained(model_args.PLM, config=config)
+            model = model_class(model_checkpoint=model_args.PLM, config=config)
             train_dataset = dset.select(train_idx.tolist())
             valid_dataset = dset.select(valid_idx.tolist())
                         
