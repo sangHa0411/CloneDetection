@@ -1,6 +1,8 @@
+__pycache__
 data/*.csv
 *.sh
 *.env
 wandb
 exps
-__pycache__
+results
+checkpoints

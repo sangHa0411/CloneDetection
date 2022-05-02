@@ -104,8 +104,8 @@ def main():
             trainer.save_model(save_path)
             wandb.finish()  
             
-            if training_args.do_eval:
-                break
+            # if training_args.do_eval:
+            #     break
             
 def seed_everything(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
