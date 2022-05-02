@@ -53,6 +53,7 @@ def main():
     # -- Collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
     
+    # -- Inference
     pred_probs = []
     for i in tqdm(range(training_args.fold_size)) :
         PLM = os.path.join(model_args.PLM, f'fold{i}')
@@ -76,7 +77,7 @@ def main():
     pred_ids = np.where(pred >= 0.5, 1, 0)
     sub_df = pd.read_csv(os.path.join(data_args.date_path, 'sample_submission.csv'))
     sub_df['similar'] = pred_ids
-    sub_df.to_csv(os.path.join(inference_args.dir_path, 'soft_voting.csv'))
+    sub_df.to_csv(os.path.join(training_args.output_dir, inference_args.file_name))
 
    
 if __name__ == "__main__" :

@@ -61,8 +61,8 @@ class LoggingArguments:
 
 @dataclass
 class InferenceArguments:
-    dir_path : Optional[str] = field(
-        default='./results',
+    file_name : Optional[str] = field(
+        default='base_5fold.csv',
         metadata={"help" : "The csv file for test dataset"}
     )
     ORG_PLM: str = field(
