@@ -1,6 +1,6 @@
 
 
-class BlockDeleter : 
+class Preprocessor : 
     def __init__(self, ) :
         pass
 
@@ -29,16 +29,6 @@ class BlockDeleter :
             code = self.delete_annotation_block(code, string)
         return code
 
-    def __call__(self, code) :
-        code = self.delete_block(code, '"""')
-        code = self.delete_block(code, "'''")
-        return code
-
-
-class Preprocessor :
-    def __init__(self, tokenizer) :
-        self.tokenizer = tokenizer 
-
     def delete_annotation(self, code) :
         sens = code.split('\n')
 
@@ -51,12 +41,8 @@ class Preprocessor :
 
         return '\n'.join(sens_processed)
 
-    def split(self, code, tokenizer) :
-        sens = code.split('\n')
-        sens = [sen.strip() for sen in sens if sen.strip() != '']
-        return tokenizer.sep_token.join(sens)
-
-    def __call__(self, code) :        
-        code = self.delete_annotation(code) 
-        code_input = self.split(code, self.tokenizer)
-        return code_input
+    def __call__(self, code) :
+        code = self.delete_block(code, '"""')
+        code = self.delete_block(code, "'''")
+        code = self.delete_annotation(code)
+        return code

@@ -37,19 +37,14 @@ def main():
     df = pd.read_csv(os.path.join(data_args.date_path, 'sample_train.csv'))
     
     # -- Preprocessing datasets
-    deleter = BlockDeleter()
-    df['code1'] = df['code1'].apply(deleter)
-    df['code2'] = df['code2'].apply(deleter)
-
-    tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-    preprocessor = Preprocessor(tokenizer)
+    preprocessor = Preprocessor()
     df['code1'] = df['code1'].apply(preprocessor)
     df['code2'] = df['code2'].apply(preprocessor)
-
     dset = Dataset.from_pandas(df)
     print(dset)
 
     # -- Tokenizing & Encoding
+    tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
     print(dset)
@@ -67,6 +62,7 @@ def main():
 
         for i, (train_idx, valid_idx) in enumerate(skf.split(dset, dset['labels'])):
             model = model_class(model_checkpoint=model_args.PLM, config=config)
+            
             train_dataset = dset.select(train_idx.tolist())
             valid_dataset = dset.select(valid_idx.tolist())
                         
@@ -75,7 +71,7 @@ def main():
             WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
             wandb.login(key=WANDB_AUTH_KEY)
 
-            group_name = 'roberta-large-' + str(training_args.fold_size) + '-fold-training'
+            group_name = model_args.PLM + '-' + str(training_args.fold_size) + '-fold-training'
             name = f"EP:{training_args.num_train_epochs}\
                 _LR:{training_args.learning_rate}\
                 _BS:{training_args.per_device_train_batch_size}\

@@ -15,25 +15,6 @@ class SimilarityOutput(ModelOutput):
     hidden_states2: Optional[Tuple[torch.FloatTensor]] = None
     attentions2: Optional[Tuple[torch.FloatTensor]] = None
 
-class RobertaClassificationHead(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
-        )
-        self.dropout = nn.Dropout(classifier_dropout)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-        x = features[:, 0, :]
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
-
 class RobertaForSimilarityClassification(RobertaPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
@@ -45,8 +26,6 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
 
         self.roberta_code1 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
         self.roberta_code2 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
-
-        # self.classifier = RobertaClassificationHead(config)
 
     def forward(
         self,
@@ -92,7 +71,7 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
 
         code_similarity_output = torch.matmul(code1_sequence_output, code2_sequence_output)
         logits = code_similarity_output.squeeze() # (batch_size, )
-
+        
         loss = None
         if labels is not None:
             loss_fct = nn.BCEWithLogitsLoss()

@@ -5,7 +5,7 @@ from transformers import TrainingArguments
 @dataclass
 class ModelArguments : 
     PLM: str = field(
-        default="roberta-large",
+        default="microsoft/codebert-base",
         metadata={
             "help": "Path to pretrained model or model identifier from huggingface.co/models"
         },
