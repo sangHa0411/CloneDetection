@@ -3,10 +3,10 @@ from sklearn.metrics import accuracy_score, f1_score
 
 def compute_metrics(pred):
     labels = pred.label_ids
-    similar_flag = True if len(pred.predictions) == 2 else False 
+    similar_flag = True if len(pred.predictions.shape) == 1 else False 
 
     if similar_flag :
-        preds = np.where(pred.predictions >= 0.5, 1, 0)
+        preds = np.where(pred.predictions >= 0.0, 1, 0)
     else :
         preds = np.argmax(pred.predictions, axis=-1)
 

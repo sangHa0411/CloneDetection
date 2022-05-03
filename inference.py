@@ -42,8 +42,8 @@ def main():
     print(dset)
 
     # -- Tokenizing & Encoding
-    tokenizer = AutoTokenizer.from_pretrained(inference_args.ORG_PLM)
-    encoder = Encoder(tokenizer, data_args.max_length)
+    tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
+    encoder = Encoder(tokenizer, False, data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
     print(dset)
 

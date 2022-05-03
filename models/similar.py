@@ -31,7 +31,7 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
-        self.classifier = nn.CosineSimilarity(dim=1, eps=1e-6)
+        self.classifier = nn.CosineSimilarity(dim=1, eps=1e-8)
 
     def forward(
         self,
