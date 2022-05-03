@@ -43,7 +43,7 @@ def main():
     df['code2'] = df['code2'].apply(preprocessor)
     dset = Dataset.from_pandas(df)
     print(dset)
-
+    
     SIMILAR_FLAG = training_args.similarity_flag
 
     # -- Tokenizing & Encoding
@@ -69,7 +69,7 @@ def main():
                 model_class = getattr(model_lib, 'RobertaRBERT')
             else :
                 assert NotImplementedError('Not Implemented Model type')
-            
+
     # -- Collator
     collator_class = DataCollatorForSimilarity if SIMILAR_FLAG else DataCollatorWithPadding
     data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
@@ -78,17 +78,22 @@ def main():
         skf = StratifiedKFold(n_splits=training_args.fold_size, shuffle=True)
 
         for i, (train_idx, valid_idx) in enumerate(skf.split(dset, dset['labels'])):
-            model = model_class.from_pretrained(model_args.PLM, config=config)
+            if SIMILAR_FLAG :
+                model = model_class(model_args.PLM, config=config)
+            else :
+                model = model_class.from_pretrained(model_args.PLM, config=config)
             
             train_dataset = dset.select(train_idx.tolist())
             valid_dataset = dset.select(valid_idx.tolist())
-                        
+
             # -- Wandb
             load_dotenv(dotenv_path=logging_args.dotenv_path)
             WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
             wandb.login(key=WANDB_AUTH_KEY)
 
             group_name = model_args.PLM + '-' + str(training_args.fold_size) + '-fold-training'
+            if SIMILAR_FLAG :
+                group_name += '(similar model)'
             name = f"EP:{training_args.num_train_epochs}\
                 _LR:{training_args.learning_rate}\
                 _BS:{training_args.per_device_train_batch_size}\

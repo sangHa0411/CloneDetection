@@ -1,6 +1,5 @@
 from typing import Optional
 from dataclasses import dataclass, field
-from model import SimilarityOutput
 from transformers import TrainingArguments
 
 @dataclass
