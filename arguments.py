@@ -65,9 +65,3 @@ class InferenceArguments:
         default='base_5fold.csv',
         metadata={"help" : "The csv file for test dataset"}
     )
-    ORG_PLM: str = field(
-        default="microsoft/codebert-base",
-        metadata={
-            "help": "Path to pretrained model or model identifier from huggingface.co/models"
-        },
-    )

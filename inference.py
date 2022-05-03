@@ -6,9 +6,7 @@ import importlib
 import numpy as np
 import pandas as pd 
 from datasets import Dataset
-from model import RobertaForSimilarityClassification
 from utils.encoder import Encoder
-from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import Preprocessor
 from tqdm import tqdm
 
@@ -21,6 +19,8 @@ from arguments import (ModelArguments,
 from transformers import (
     AutoConfig,
     AutoTokenizer,
+    AutoModelForSequenceClassification,
+    DataCollatorWithPadding,
     HfArgumentParser,
     Trainer,
 )
@@ -48,7 +48,7 @@ def main():
     print(dset)
 
     # -- Model Class
-    model_class = RobertaForSimilarityClassification
+    model_class = AutoModelForSequenceClassification
     
     # -- Collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
@@ -60,8 +60,7 @@ def main():
 
         # -- Config & Model
         config = AutoConfig.from_pretrained(PLM)
-        model = model_class(model_checkpoint=inference_args.ORG_PLM, config=config)
-        model.load_state_dict(torch.load(os.path.join(PLM, 'pytorch_model.bin')))
+        model = model_class.from_pretrained(PLM, config=config)
 
         trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
             model=model,                         # trained model
@@ -74,11 +73,10 @@ def main():
         pred_probs.append(outputs[0])
 
     pred = np.mean(pred_probs, axis=0)
-    pred_ids = np.where(pred >= 0.5, 1, 0)
+    pred_ids = np.argmax(pred, axis=-1)
     sub_df = pd.read_csv(os.path.join(data_args.date_path, 'sample_submission.csv'))
     sub_df['similar'] = pred_ids
-    sub_df.to_csv(os.path.join(training_args.output_dir, inference_args.file_name))
+    sub_df.to_csv(os.path.join(training_args.output_dir, inference_args.file_name), index=False)
 
-   
 if __name__ == "__main__" :
     main()

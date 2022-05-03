@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from dataclasses import dataclass
 from typing import Optional, Union, Tuple
 from transformers import RobertaPreTrainedModel, RobertaModel
-from transformers.modeling_outputs import ModelOutput
+from transformers.modeling_outputs import ModelOutput, SequenceClassifierOutput
 
 @dataclass
 class SimilarityOutput(ModelOutput):
@@ -15,38 +16,59 @@ class SimilarityOutput(ModelOutput):
     hidden_states2: Optional[Tuple[torch.FloatTensor]] = None
     attentions2: Optional[Tuple[torch.FloatTensor]] = None
 
-class RobertaForSimilarityClassification(RobertaPreTrainedModel):
+
+class RobertaClassificationHead(nn.Module):
+    def __init__(self, hidden_size, dropout, num_labels):
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.dropout = nn.Dropout(dropout)
+        self.out_proj = nn.Linear(hidden_size, num_labels)
+
+    def forward(self, x):
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class RobertaRBERT(RobertaPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
-    def __init__(self, model_checkpoint, config):
+    def __init__(self, config):
         super().__init__(config)
-        self.model_checkpoint = model_checkpoint
         self.num_labels = config.num_labels
         self.config = config
 
-        self.roberta_code1 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
-        self.roberta_code2 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
+        self.roberta = RobertaModel(config, add_pooling_layer=False)
+        self.net = nn.Sequential(
+            nn.Dropout(config.hidden_dropout_prob),
+            nn.Linear(config.hidden_size, config.hidden_size),
+            nn.ReLU()
+        )
+        self.classifier = nn.Linear(config.hidden_size*4, config.num_labels)
 
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        input_ids2: Optional[torch.LongTensor] = None,
-        attention_mask2: Optional[torch.FloatTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, SimilarityOutput]:
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs1 = self.roberta_code1(
+        outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
@@ -55,37 +77,33 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
             return_dict=return_dict,
         )
 
-        outputs2 = self.roberta_code2(
-            input_ids2,
-            attention_mask=attention_mask2,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-        
-        code1_sequence_output = outputs1[1].unsqueeze(1)
-        code2_sequence_output = outputs2[1].unsqueeze(-1)
+        batch_size = len(input_ids)
+        hidden_states = outputs[0]
 
-        code_similarity_output = torch.matmul(code1_sequence_output, code2_sequence_output)
-        logits = code_similarity_output.squeeze()
-        
+        cls_flag = input_ids == 0 
+        sep_flag = input_ids == 2
+
+        sep_token_states = hidden_states[cls_flag + sep_flag]
+        sep_token_states = sep_token_states.view(batch_size, -1, self.config.hidden_size)
+        sep_hidden_states = self.net(sep_token_states)
+
+        pooled_output = sep_hidden_states.view(batch_size, -1)
+        logits = self.classifier(pooled_output)
+
         loss = None
+        outputs.hidden_states = None
         if labels is not None:
-            loss_fct = nn.BCEWithLogitsLoss()
-            loss = loss_fct(logits, labels.float())
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         if not return_dict:
-            output = (logits,) + outputs1[2:] + outputs2[2:]
+            output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return SimilarityOutput(
+        return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states1=outputs1.hidden_states,
-            attentions1=outputs1.attentions,
-            hidden_states2=outputs2.hidden_states,
-            attentions2=outputs2.attentions,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
         )
+    
