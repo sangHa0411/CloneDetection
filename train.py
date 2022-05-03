@@ -10,7 +10,7 @@ from datasets import Dataset
 from model import RobertaForSimilarityClassification
 from utils.encoder import Encoder
 from utils.metric import compute_metrics
-from utils.collator import DataCollatorWithPadding
+# from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import Preprocessor
 from sklearn.model_selection import StratifiedKFold
 from arguments import (ModelArguments, 
@@ -22,6 +22,8 @@ from arguments import (ModelArguments,
 from transformers import (
     AutoConfig,
     AutoTokenizer,
+    AutoModelForSequenceClassification,
+    DataCollatorWithPadding,
     HfArgumentParser,
     Trainer,
 )
@@ -51,8 +53,8 @@ def main():
 
     # -- Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
-    config.num_labels = 1
-    model_class = RobertaForSimilarityClassification
+    config.num_labels = 2
+    model_class = AutoModelForSequenceClassification
    
     # -- Collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
@@ -61,7 +63,7 @@ def main():
         skf = StratifiedKFold(n_splits=training_args.fold_size, shuffle=True)
 
         for i, (train_idx, valid_idx) in enumerate(skf.split(dset, dset['labels'])):
-            model = model_class(model_checkpoint=model_args.PLM, config=config)
+            model = model_class.from_pretrained(model_args.PLM, config=config)
             
             train_dataset = dset.select(train_idx.tolist())
             valid_dataset = dset.select(valid_idx.tolist())
