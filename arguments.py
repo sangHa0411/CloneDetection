@@ -1,5 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass, field
+from model import SimilarityOutput
 from transformers import TrainingArguments
 
 @dataclass
@@ -46,6 +47,14 @@ class MyTrainingArguments(TrainingArguments):
     fold_size : Optional[int] = field(
         default=5,
         metadata={"help" : "The number of folds"}
+    )
+    similarity_flag : Optional[bool] = field(
+        default=False,
+        metadata={"help" : "using cosing similarity model"}
+    )
+    model_type: Optional[str] = field(
+        default='base',
+        metadata={"help" : "model type"}
     )
 
 @dataclass

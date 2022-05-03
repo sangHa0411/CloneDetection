@@ -7,10 +7,9 @@ import numpy as np
 import pandas as pd 
 from dotenv import load_dotenv
 from datasets import Dataset
-from model import RobertaForSimilarityClassification
 from utils.encoder import Encoder
 from utils.metric import compute_metrics
-# from utils.collator import DataCollatorWithPadding
+from utils.collator import DataCollatorForSimilarity
 from utils.preprocessor import Preprocessor
 from sklearn.model_selection import StratifiedKFold
 from arguments import (ModelArguments, 
@@ -45,19 +44,35 @@ def main():
     dset = Dataset.from_pandas(df)
     print(dset)
 
+    SIMILAR_FLAG = training_args.similarity_flag
+
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-    encoder = Encoder(tokenizer, data_args.max_length)
+    encoder = Encoder(tokenizer, similarlity_flag=SIMILAR_FLAG, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
     print(dset)
 
-    # -- Model Class
+    # -- Config & Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
-    config.num_labels = 2
-    model_class = AutoModelForSequenceClassification
-   
+    config.num_labels = 1 if SIMILAR_FLAG else 2
+    
+    if SIMILAR_FLAG :
+        model_lib = importlib.import_module('models.similar')
+        model_class = getattr(model_lib, 'RobertaForSimilarityClassification')
+    else :
+        MODEL_TYPE = training_args.model_type
+        if MODEL_TYPE == 'base' :
+            model_class = AutoModelForSequenceClassification
+        else :
+            model_lib = importlib.import_module('models.base')
+            if MODEL_TYPE == 'rbert' :
+                model_class = getattr(model_lib, 'RobertaRBERT')
+            else :
+                assert NotImplementedError('Not Implemented Model type')
+            
     # -- Collator
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
+    collator_class = DataCollatorForSimilarity if SIMILAR_FLAG else DataCollatorWithPadding
+    data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
 
     if training_args.do_train:
         skf = StratifiedKFold(n_splits=training_args.fold_size, shuffle=True)
