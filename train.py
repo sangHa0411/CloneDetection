@@ -54,7 +54,7 @@ def main():
 
     # -- Config & Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
-    config.num_labels = 1 if SIMILAR_FLAG else 2
+    config.num_labels = 2
     
     if SIMILAR_FLAG :
         model_lib = importlib.import_module('models.similar')

@@ -8,6 +8,7 @@ import pandas as pd
 from datasets import Dataset
 from utils.encoder import Encoder
 from utils.preprocessor import Preprocessor
+from utils.collator import DataCollatorForSimilarity
 from tqdm import tqdm
 
 from arguments import (ModelArguments, 
@@ -41,17 +42,32 @@ def main():
     dset = Dataset.from_pandas(df)
     print(dset)
 
+    SIMILAR_FLAG = training_args.similarity_flag
+
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
-    encoder = Encoder(tokenizer, False, data_args.max_length)
+    encoder = Encoder(tokenizer, SIMILAR_FLAG, data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
     print(dset)
 
     # -- Model Class
-    model_class = AutoModelForSequenceClassification
-    
+    if SIMILAR_FLAG :
+        model_lib = importlib.import_module('models.similar')
+        model_class = getattr(model_lib, 'RobertaForSimilarityClassification')
+    else :
+        MODEL_TYPE = training_args.model_type
+        if MODEL_TYPE == 'base' :
+            model_class = AutoModelForSequenceClassification
+        else :
+            model_lib = importlib.import_module('models.base')
+            if MODEL_TYPE == 'rbert' :
+                model_class = getattr(model_lib, 'RobertaRBERT')
+            else :
+                assert NotImplementedError('Not Implemented Model type')
+
     # -- Collator
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
+    collator_class = DataCollatorForSimilarity if SIMILAR_FLAG else DataCollatorWithPadding
+    data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
     
     # -- Inference
     pred_probs = []
@@ -60,7 +76,11 @@ def main():
 
         # -- Config & Model
         config = AutoConfig.from_pretrained(PLM)
-        model = model_class.from_pretrained(PLM, config=config)
+        if SIMILAR_FLAG :
+            model = model_class(inference_args.tokenizer, config=config)
+            model.load_state_dict(torch.load(os.path.join(PLM, 'pytorch_model.bin')))
+        else :
+            model = model_class.from_pretrained(model_args.PLM, config=config)
 
         trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
             model=model,                         # trained model

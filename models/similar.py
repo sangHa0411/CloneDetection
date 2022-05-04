@@ -15,6 +15,26 @@ class SimilarityOutput(ModelOutput):
     hidden_states2: Optional[Tuple[torch.FloatTensor]] = None
     attentions2: Optional[Tuple[torch.FloatTensor]] = None
 
+class RobertaClassificationHead(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features1, features2):
+        x = features1[:, 0, :]  + features2[:, 0, :]
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
 class RobertaForSimilarityClassification(RobertaPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
@@ -24,14 +44,10 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
         self.num_labels = config.num_labels
         self.config = config
 
-        self.reoberta_model1 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
-        self.reoberta_model2 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=True)
+        self.reoberta_model1 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=False)
+        self.reoberta_model2 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=False)
 
-        classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
-        )
-        self.dropout = nn.Dropout(classifier_dropout)
-        self.classifier = nn.CosineSimilarity(dim=1, eps=1e-8)
+        self.classifier = RobertaClassificationHead(config)
 
     def forward(
         self,
@@ -72,18 +88,11 @@ class RobertaForSimilarityClassification(RobertaPreTrainedModel):
             return_dict=return_dict,
         )
         
-        code1_hidden_states = outputs1[1] # (batch_size, hidden_size)
-        code1_hidden_states = self.dropout(code1_hidden_states)
-
-        code2_hidden_states = outputs2[1] # (batch_size, hidden_size)
-        code2_hidden_states = self.dropout(code2_hidden_states)
-
-        logits = self.classifier(code1_hidden_states, code2_hidden_states)
-        
+        logits = self.classifier(outputs1[0], outputs2[0])
         loss = None
         if labels is not None:
-            loss_fct = nn.BCEWithLogitsLoss()
-            loss = loss_fct(logits, labels.float())
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits, labels)
 
         if not return_dict:
             output = (logits,) + outputs1[2:] + outputs2[2:]
