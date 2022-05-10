@@ -38,16 +38,18 @@ class RobertaClassificationHead(nn.Module):
 class RobertaForSimilarityClassification(RobertaPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
-    def __init__(self, model_checkpoint, config):
+    def __init__(self, config):
         super().__init__(config)
-        self.model_checkpoint = model_checkpoint
         self.num_labels = config.num_labels
         self.config = config
 
-        self.reoberta_model1 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=False)
-        self.reoberta_model2 = RobertaModel.from_pretrained(model_checkpoint, config=config, add_pooling_layer=False)
-
+        self.reoberta_model1 = RobertaModel(config=config, add_pooling_layer=False)
+        self.reoberta_model2 = RobertaModel(config=config, add_pooling_layer=False)
         self.classifier = RobertaClassificationHead(config)
+
+    def load_weight(self, model_checkpoint) :
+        self.reoberta_model1 = RobertaModel.from_pretrained(model_checkpoint, config=self.config, add_pooling_layer=False)
+        self.reoberta_model2 = RobertaModel.from_pretrained(model_checkpoint, config=self.config, add_pooling_layer=False)
 
     def forward(
         self,

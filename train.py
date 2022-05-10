@@ -5,8 +5,9 @@ import random
 import importlib
 import numpy as np
 import pandas as pd 
+import multiprocessing
 from dotenv import load_dotenv
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from utils.encoder import Encoder
 from utils.metric import compute_metrics
 from utils.collator import DataCollatorForSimilarity
@@ -35,22 +36,22 @@ def main():
     seed_everything(training_args.seed)
 
     # -- Loading datasets
-    df = pd.read_csv(os.path.join(data_args.date_path, 'sample_train.csv'))
-    
+    dset = load_dataset('sh110495/code-similarity')
+
     # -- Preprocessing datasets
     preprocessor = Preprocessor()
-    df['code1'] = df['code1'].apply(preprocessor)
-    df['code2'] = df['code2'].apply(preprocessor)
-    dset = Dataset.from_pandas(df)
+    dset = dset.map(preprocessor, batched=True, num_proc=multiprocessing.cpu_count())
     print(dset)
+    breakpoint()
     
     SIMILAR_FLAG = training_args.similarity_flag
 
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, similarlity_flag=SIMILAR_FLAG, max_input_length=data_args.max_length)
-    dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
+    dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset['train'].column_names)
     print(dset)
+    breakpoint()
 
     # -- Config & Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
@@ -75,60 +76,55 @@ def main():
     data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
 
     if training_args.do_train:
-        skf = StratifiedKFold(n_splits=training_args.fold_size, shuffle=True)
 
-        for i, (train_idx, valid_idx) in enumerate(skf.split(dset, dset['labels'])):
-            if SIMILAR_FLAG :
-                model = model_class(model_args.PLM, config=config)
-            else :
-                model = model_class.from_pretrained(model_args.PLM, config=config)
-            
-            train_dataset = dset.select(train_idx.tolist())
-            valid_dataset = dset.select(valid_idx.tolist())
+        if SIMILAR_FLAG :
+            model = model_class(config=config)
+            model.load_weight(model_args.PLM)
+        else :
+            model = model_class.from_pretrained(model_args.PLM, config=config)
+         
+        # -- Wandb
+        load_dotenv(dotenv_path=logging_args.dotenv_path)
+        WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
+        wandb.login(key=WANDB_AUTH_KEY)
 
-            # -- Wandb
-            load_dotenv(dotenv_path=logging_args.dotenv_path)
-            WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
-            wandb.login(key=WANDB_AUTH_KEY)
+        group_name = model_args.PLM + '-' + str(training_args.fold_size)
 
-            group_name = model_args.PLM + '-' + str(training_args.fold_size) + '-fold-training'
-            if SIMILAR_FLAG :
-                group_name += '(similar model)'
-            name = f"EP:{training_args.num_train_epochs}\
-                _LR:{training_args.learning_rate}\
-                _BS:{training_args.per_device_train_batch_size}\
-                _WR:{training_args.warmup_ratio}\
-                _WD:{training_args.weight_decay}\
-                _{i+1}fold"
+        if SIMILAR_FLAG :
+            group_name += '(similar model)'
+        name = f"EP:{training_args.num_train_epochs}\
+            _LR:{training_args.learning_rate}\
+            _BS:{training_args.per_device_train_batch_size}\
+            _WR:{training_args.warmup_ratio}\
+            _WD:{training_args.weight_decay}\
+            _{i+1}fold"
+    
+        wandb.init(
+            entity="sangha0411",
+            project=logging_args.project_name,
+            group=group_name,
+            name=name
+        )
+        wandb.config.update(training_args)
+
+        trainer = Trainer(                          # the instantiated 🤗 Transformers model to be trained
+            model=model,                            # model
+            args=training_args,                     # training arguments, defined above
+            train_dataset=dset['train'],            # training dataset
+            eval_dataset=dset['validation'],        # evaluation dataset
+            data_collator=data_collator,            # collator
+            tokenizer=tokenizer,                    # tokenizer
+            compute_metrics=compute_metrics,        # define metrics function
+        )
+
+        # -- Training
+        trainer.train()
+        save_path = os.path.join(model_args.save_path, f'fold{i}')
+        trainer.evaluate()
+        trainer.save_model(save_path)
+        wandb.finish()  
         
-            wandb.init(
-                entity="sangha0411",
-                project=logging_args.project_name,
-                group=group_name,
-                name=name
-            )
-            wandb.config.update(training_args)
 
-            trainer = Trainer(                          # the instantiated 🤗 Transformers model to be trained
-                model=model,                            # model
-                args=training_args,                     # training arguments, defined above
-                train_dataset=train_dataset,            # training dataset
-                eval_dataset=valid_dataset,             # evaluation dataset
-                data_collator=data_collator,            # collator
-                tokenizer=tokenizer,                    # tokenizer
-                compute_metrics=compute_metrics,        # define metrics function
-            )
-
-            # -- Training
-            trainer.train()
-            save_path = os.path.join(model_args.save_path, f'fold{i}')
-            trainer.evaluate()
-            trainer.save_model(save_path)
-            wandb.finish()  
-            
-            # if training_args.do_eval:
-            #     break
-            
 def seed_everything(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.manual_seed(seed)

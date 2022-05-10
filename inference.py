@@ -76,11 +76,7 @@ def main():
 
         # -- Config & Model
         config = AutoConfig.from_pretrained(PLM)
-        if SIMILAR_FLAG :
-            model = model_class(inference_args.tokenizer, config=config)
-            model.load_state_dict(torch.load(os.path.join(PLM, 'pytorch_model.bin')))
-        else :
-            model = model_class.from_pretrained(model_args.PLM, config=config)
+        model = model_class.from_pretrained(PLM, config=config)
 
         trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
             model=model,                         # trained model
@@ -90,7 +86,7 @@ def main():
 
         # -- Inference
         outputs = trainer.predict(dset)
-        pred_probs.append(outputs[0])
+        pred_probs.append(outputs[0][0])
 
     pred = np.mean(pred_probs, axis=0)
     pred_ids = np.argmax(pred, axis=-1)

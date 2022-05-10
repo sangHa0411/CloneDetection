@@ -41,8 +41,29 @@ class Preprocessor :
 
         return '\n'.join(sens_processed)
 
-    def __call__(self, code) :
+    def strip(self, code) :
+        sen_list = [sen.strip() for sen in code.split('\n') if sen != '']
+        return ' '.join(sen_list)
+
+    def preprocess(self, code) :
         code = self.delete_block(code, '"""')
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
-        return code
+        return self.strip(code)
+
+
+    def __call__(self, datasets) :
+        code1_list = []
+        code2_list = []
+
+        size = len(datasets['similar'])
+        for i in range(size) :
+            code1 = self.preprocess(datasets['code1'][i])
+            code2 = self.preprocess(datasets['code2'][i])
+            
+            code1_list.append(code1)
+            code2_list.append(code2)
+
+        datasets['code1'] = code1_list
+        datasets['code2'] = code2_list
+        return datasets
