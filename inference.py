@@ -5,6 +5,7 @@ import random
 import importlib
 import numpy as np
 import pandas as pd 
+import multiprocessing
 from datasets import Dataset
 from utils.encoder import Encoder
 from utils.preprocessor import Preprocessor
@@ -34,12 +35,11 @@ def main():
 
     # -- Loading datasets
     df = pd.read_csv(os.path.join(data_args.date_path, 'test.csv'))
+    dset = Dataset.from_pandas(df)
     
     # -- Preprocessing datasets
     preprocessor = Preprocessor()
-    df['code1'] = df['code1'].apply(preprocessor)
-    df['code2'] = df['code2'].apply(preprocessor)
-    dset = Dataset.from_pandas(df)
+    dset = dset.map(preprocessor, batched=True, num_proc=multiprocessing.cpu_count())
     print(dset)
 
     SIMILAR_FLAG = training_args.similarity_flag
@@ -47,7 +47,7 @@ def main():
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
     encoder = Encoder(tokenizer, SIMILAR_FLAG, data_args.max_length)
-    dset = dset.map(encoder, batched=True, num_proc=4, remove_columns=dset.column_names)
+    dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset.column_names)
     print(dset)
 
     # -- Model Class
@@ -70,26 +70,21 @@ def main():
     data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
     
     # -- Inference
-    pred_probs = []
-    for i in tqdm(range(training_args.fold_size)) :
-        PLM = os.path.join(model_args.PLM, f'fold{i}')
+    # -- Config & Model
+    print(model_args.PLM)
+    config = AutoConfig.from_pretrained(model_args.PLM)
+    model = model_class.from_pretrained(model_args.PLM, config=config)
 
-        # -- Config & Model
-        config = AutoConfig.from_pretrained(PLM)
-        model = model_class.from_pretrained(PLM, config=config)
+    trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
+        model=model,                         # trained model
+        args=training_args,                  # training arguments, defined above
+        data_collator=data_collator,         # collator
+    )
 
-        trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
-            model=model,                         # trained model
-            args=training_args,                  # training arguments, defined above
-            data_collator=data_collator,         # collator
-        )
+    # -- Inference
+    outputs = trainer.predict(dset)
 
-        # -- Inference
-        outputs = trainer.predict(dset)
-        pred_probs.append(outputs[0][0])
-
-    pred = np.mean(pred_probs, axis=0)
-    pred_ids = np.argmax(pred, axis=-1)
+    pred_ids = np.argmax(outputs[0], axis=-1)
     sub_df = pd.read_csv(os.path.join(data_args.date_path, 'sample_submission.csv'))
     sub_df['similar'] = pred_ids
     sub_df.to_csv(os.path.join(training_args.output_dir, inference_args.file_name), index=False)

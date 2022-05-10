@@ -6,13 +6,13 @@ import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
+import transformers
 from dotenv import load_dotenv
-from datasets import Dataset, load_dataset
-from utils.encoder import Encoder
+from datasets import Dataset, DatasetDict, load_dataset
 from utils.metric import compute_metrics
+from utils.encoder import Encoder
 from utils.collator import DataCollatorForSimilarity
 from utils.preprocessor import Preprocessor
-from sklearn.model_selection import StratifiedKFold
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -32,13 +32,16 @@ def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, MyTrainingArguments, LoggingArguments)
     )
+    # transformers.logging.set_verbosity_error()
     model_args, data_args, training_args, logging_args = parser.parse_args_into_dataclasses()
     seed_everything(training_args.seed)
 
     load_dotenv(dotenv_path=logging_args.dotenv_path)
-    HUGGINGFACE_AUTH_KEY = os.getenv("HUGGINGFACE_AUTH_KEY")   
+    POOLC_AUTH_KEY = os.getenv("POOLC_AUTH_KEY")   
     # -- Loading datasets
-    dset = load_dataset('sh110495/code-similarity', use_auth_token=HUGGINGFACE_AUTH_KEY)
+    # dset = load_dataset('sh110495/code-similarity', use_auth_token=HUGGINGFACE_AUTH_KEY)
+    dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
+    print(dset)
 
     # -- Preprocessing datasets
     preprocessor = Preprocessor()
@@ -105,7 +108,7 @@ def main():
             model=model,                            # model
             args=training_args,                     # training arguments, defined above
             train_dataset=dset['train'],            # training dataset
-            eval_dataset=dset['validation'],        # evaluation dataset
+            eval_dataset=dset['val'],        # evaluation dataset
             data_collator=data_collator,            # collator
             tokenizer=tokenizer,                    # tokenizer
             compute_metrics=compute_metrics,        # define metrics function
