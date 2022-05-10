@@ -31,21 +31,12 @@ class DataTrainingArguments:
             "help": "Data directory"
         }
     )
-    preprocessing_num_workers: int = field(
-        default=4,
-        metadata={
-            "help": "The number of preprocessing workers"
-        }
-    )
+
     
 @dataclass
 class MyTrainingArguments(TrainingArguments):
     report_to: Optional[str] = field(
         default='wandb',
-    )
-    fold_size : Optional[int] = field(
-        default=5,
-        metadata={"help" : "The number of folds"}
     )
     similarity_flag : Optional[bool] = field(
         default=False,
@@ -70,7 +61,7 @@ class LoggingArguments:
 @dataclass
 class InferenceArguments:
     file_name : Optional[str] = field(
-        default='base_5fold.csv',
+        default='base.csv',
         metadata={"help" : "The csv file for test dataset"}
     )
     tokenizer:  Optional[str] = field(

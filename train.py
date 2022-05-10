@@ -35,14 +35,15 @@ def main():
     model_args, data_args, training_args, logging_args = parser.parse_args_into_dataclasses()
     seed_everything(training_args.seed)
 
+    load_dotenv(dotenv_path=logging_args.dotenv_path)
+    HUGGINGFACE_AUTH_KEY = os.getenv("HUGGINGFACE_AUTH_KEY")   
     # -- Loading datasets
-    dset = load_dataset('sh110495/code-similarity')
+    dset = load_dataset('sh110495/code-similarity', use_auth_token=HUGGINGFACE_AUTH_KEY)
 
     # -- Preprocessing datasets
     preprocessor = Preprocessor()
     dset = dset.map(preprocessor, batched=True, num_proc=multiprocessing.cpu_count())
     print(dset)
-    breakpoint()
     
     SIMILAR_FLAG = training_args.similarity_flag
 
@@ -51,7 +52,6 @@ def main():
     encoder = Encoder(tokenizer, similarlity_flag=SIMILAR_FLAG, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset['train'].column_names)
     print(dset)
-    breakpoint()
 
     # -- Config & Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
@@ -84,21 +84,15 @@ def main():
             model = model_class.from_pretrained(model_args.PLM, config=config)
          
         # -- Wandb
-        load_dotenv(dotenv_path=logging_args.dotenv_path)
         WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
         wandb.login(key=WANDB_AUTH_KEY)
 
-        group_name = model_args.PLM + '-' + str(training_args.fold_size)
+        group_name = model_args.PLM
 
         if SIMILAR_FLAG :
             group_name += '(similar model)'
-        name = f"EP:{training_args.num_train_epochs}\
-            _LR:{training_args.learning_rate}\
-            _BS:{training_args.per_device_train_batch_size}\
-            _WR:{training_args.warmup_ratio}\
-            _WD:{training_args.weight_decay}\
-            _{i+1}fold"
-    
+
+        name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}"
         wandb.init(
             entity="sangha0411",
             project=logging_args.project_name,
@@ -119,9 +113,8 @@ def main():
 
         # -- Training
         trainer.train()
-        save_path = os.path.join(model_args.save_path, f'fold{i}')
         trainer.evaluate()
-        trainer.save_model(save_path)
+        trainer.save_model(model_args.save_path)
         wandb.finish()  
         
 
