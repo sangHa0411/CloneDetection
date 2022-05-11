@@ -2,26 +2,31 @@ python train.py \
 --do_train \
 --fp16 \
 --logging_strategy steps \
---logging_steps 100 \
+--logging_steps 200 \
+--dataloader_num_workers 4 \
 --evaluation_strategy steps \
 --save_strategy steps \
---eval_steps 2000 \
---save_steps 2000 \
+--eval_steps 1000 \
+--save_steps 1000 \
 --overwrite_output_dir \
 --save_total_limit 5 \
 --output_dir ./exps \
 --logging_dir ./logs \
 --num_train_epochs 2 \
---learning_rate 1e-5 \
+--learning_rate 2e-5 \
 --per_device_train_batch_size 32 \
 --per_device_eval_batch_size 32 \
+--gradient_accumulation_steps 1 \
+--load_best_model_at_end \
+--metric_for_best_model accuracy \
 --warmup_ratio 0.05 \
 --weight_decay 1e-2
 
 # python inference.py \
-# --tokenizer uclanlp/plbart-base \
+# --tokenizer microsoft/codebert-base \
 # --output_dir results \
-# --file_name EP:2_BS:16_WR:0.05_WD:1e-3_LR:3e-5_Fold:5_Soft.csv \
-# --fold_size 5 \
+# --model_type rbert \
+# --file_name codebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5.csv \
 # --PLM ./checkpoints \
+# --fp16 \
 # --per_device_eval_batch_size 32

@@ -1,6 +1,7 @@
 
+import re
 
-class Preprocessor : 
+class AnnotationRemover : 
     def __init__(self, ) :
         pass
 
@@ -41,25 +42,45 @@ class Preprocessor :
 
         return '\n'.join(sens_processed)
 
-    def strip(self, code) :
-        sen_list = [sen.strip() for sen in code.split('\n') if sen != '']
-        return ' '.join(sen_list)
-
-    def preprocess(self, code) :
+    def remove(self, code) :
         code = self.delete_block(code, '"""')
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
-        return self.strip(code)
-
+        return code
 
     def __call__(self, datasets) :
         code1_list = []
         code2_list = []
 
-        size = len(datasets['similar'])
+        size = len(datasets['code1'])
         for i in range(size) :
-            code1 = self.preprocess(datasets['code1'][i])
-            code2 = self.preprocess(datasets['code2'][i])
+            code1 = self.remove(datasets['code1'][i])
+            code2 = self.remove(datasets['code2'][i])
+            
+            code1_list.append(code1)
+            code2_list.append(code2)
+
+        datasets['code1'] = code1_list
+        datasets['code2'] = code2_list
+        return datasets
+
+class BlankRemover : 
+    def __init__(self, ) :
+        pass
+
+    def remove(self, code) :
+        sen_list = [sen.strip() for sen in code.split('\n') if sen != '']
+        code = ' '.join(sen_list).strip()
+        return re.sub('\s+', ' ',  code)
+
+    def __call__(self, datasets) :
+        code1_list = []
+        code2_list = []
+
+        size = len(datasets['code1'])
+        for i in range(size) :
+            code1 = self.remove(datasets['code1'][i])
+            code2 = self.remove(datasets['code2'][i])
             
             code1_list.append(code1)
             code2_list.append(code2)

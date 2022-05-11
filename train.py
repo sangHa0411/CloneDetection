@@ -6,13 +6,13 @@ import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
-import transformers
 from dotenv import load_dotenv
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import load_dataset
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorForSimilarity
-from utils.preprocessor import Preprocessor
+from utils.preprocessor import AnnotationRemover, BlankRemover
+from utils.normalizer import Normalizer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -43,9 +43,15 @@ def main():
     dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
     print(dset)
 
+    CPU_COUNT = multiprocessing.cpu_count() // 2
+
     # -- Preprocessing datasets
-    preprocessor = Preprocessor()
-    dset = dset.map(preprocessor, batched=True, num_proc=multiprocessing.cpu_count())
+    annotation_processor = AnnotationRemover()
+    black_processor = BlankRemover()
+    normalizer = Normalizer()
+    dset = dset.map(annotation_processor, batched=True, num_proc=CPU_COUNT)
+    dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
+    dset = dset.map(black_processor, batched=True, num_proc=CPU_COUNT)
     print(dset)
     
     SIMILAR_FLAG = training_args.similarity_flag
@@ -53,7 +59,7 @@ def main():
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, similarlity_flag=SIMILAR_FLAG, max_input_length=data_args.max_length)
-    dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset['train'].column_names)
+    dset = dset.map(encoder, batched=True, num_proc=CPU_COUNT, remove_columns=dset['train'].column_names)
     print(dset)
 
     # -- Config & Model Class
@@ -95,7 +101,9 @@ def main():
         if SIMILAR_FLAG :
             group_name += '(similar model)'
 
-        name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}"
+        name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
+        name += MODEL_TYPE
+        
         wandb.init(
             entity="sangha0411",
             project=logging_args.project_name,

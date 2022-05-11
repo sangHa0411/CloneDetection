@@ -1,16 +1,13 @@
 import os
-import wandb
-import torch
-import random
 import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
 from datasets import Dataset
 from utils.encoder import Encoder
-from utils.preprocessor import Preprocessor
+from utils.normalizer import Normalizer
 from utils.collator import DataCollatorForSimilarity
-from tqdm import tqdm
+from utils.preprocessor import AnnotationRemover, BlankRemover
 
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -37,9 +34,15 @@ def main():
     df = pd.read_csv(os.path.join(data_args.date_path, 'test.csv'))
     dset = Dataset.from_pandas(df)
     
+    CPU_COUNT = multiprocessing.cpu_count() // 2
+
     # -- Preprocessing datasets
-    preprocessor = Preprocessor()
-    dset = dset.map(preprocessor, batched=True, num_proc=multiprocessing.cpu_count())
+    annotation_processor = AnnotationRemover()
+    black_processor = BlankRemover()
+    normalizer = Normalizer()
+    dset = dset.map(annotation_processor, batched=True, num_proc=CPU_COUNT)
+    dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
+    dset = dset.map(black_processor, batched=True, num_proc=CPU_COUNT)
     print(dset)
 
     SIMILAR_FLAG = training_args.similarity_flag
@@ -87,6 +90,7 @@ def main():
     pred_ids = np.argmax(outputs[0], axis=-1)
     sub_df = pd.read_csv(os.path.join(data_args.date_path, 'sample_submission.csv'))
     sub_df['similar'] = pred_ids
+    
     sub_df.to_csv(os.path.join(training_args.output_dir, inference_args.file_name), index=False)
 
 if __name__ == "__main__" :

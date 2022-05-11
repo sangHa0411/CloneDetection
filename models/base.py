@@ -91,7 +91,6 @@ class RobertaRBERT(RobertaPreTrainedModel):
         logits = self.classifier(pooled_output)
 
         loss = None
-        outputs.hidden_states = None
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
