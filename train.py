@@ -11,8 +11,8 @@ from datasets import load_dataset
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorForSimilarity
-from utils.preprocessor import AnnotationRemover, BlankRemover
-from utils.normalizer import Normalizer, Convertor
+from utils.preprocessor import Preprocessor
+from utils.normalizer import Normalizer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -46,19 +46,22 @@ def main():
     CPU_COUNT = multiprocessing.cpu_count() // 2
 
     # -- Preprocessing datasets
-    annotation_processor = AnnotationRemover()
-    dset = dset.map(annotation_processor, batched=True, num_proc=CPU_COUNT)
+    preprocessor = Preprocessor()
+    dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
 
-    normalizer = Normalizer()
-    dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
+    MAX_LENGTH = 1500
+    def filter_fn(data) :
+        if len(data['code1']) >= MAX_LENGTH or len(data['code2']) >= MAX_LENGTH :
+            return False
+        else :
+            return True
 
-    convertor = Convertor()
+    dset = dset.filter(filter_fn, num_proc=CPU_COUNT)
+    print(dset)
+
+    convertor = Normalizer()
     dset = dset.map(convertor, batched=True, num_proc=CPU_COUNT)
 
-    black_processor = BlankRemover()
-    dset = dset.map(black_processor, batched=True, num_proc=CPU_COUNT)
-    print(dset)
-    
     SIMILAR_FLAG = training_args.similarity_flag
 
     # -- Tokenizing & Encoding
@@ -121,7 +124,7 @@ def main():
             model=model,                            # model
             args=training_args,                     # training arguments, defined above
             train_dataset=dset['train'],            # training dataset
-            eval_dataset=dset['val'],        # evaluation dataset
+            eval_dataset=dset['val'],               # evaluation dataset
             data_collator=data_collator,            # collator
             tokenizer=tokenizer,                    # tokenizer
             compute_metrics=compute_metrics,        # define metrics function
@@ -133,7 +136,6 @@ def main():
         trainer.save_model(model_args.save_path)
         wandb.finish()  
         
-
 def seed_everything(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.manual_seed(seed)

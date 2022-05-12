@@ -7,7 +7,7 @@ from datasets import Dataset
 from utils.encoder import Encoder
 from utils.normalizer import Normalizer
 from utils.collator import DataCollatorForSimilarity
-from utils.preprocessor import AnnotationRemover, BlankRemover
+from utils.preprocessor import Preprocessor
 
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -33,16 +33,26 @@ def main():
     # -- Loading datasets
     df = pd.read_csv(os.path.join(data_args.date_path, 'test.csv'))
     dset = Dataset.from_pandas(df)
-    
+    print(dset)
+
     CPU_COUNT = multiprocessing.cpu_count() // 2
 
     # -- Preprocessing datasets
-    annotation_processor = AnnotationRemover()
-    black_processor = BlankRemover()
+    preprocessor = Preprocessor()
+    dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
+    print(dset)
+
+    MAX_LENGTH = 1500
+    def map_fn(data) :
+        data['code1'] = data['code1'][:MAX_LENGTH]
+        data['code2'] = data['code2'][:MAX_LENGTH]
+        return data
+
+    dset = dset.map(map_fn, batched=False, num_proc=CPU_COUNT)
+    print(dset)
+
     normalizer = Normalizer()
-    dset = dset.map(annotation_processor, batched=True, num_proc=CPU_COUNT)
     dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
-    dset = dset.map(black_processor, batched=True, num_proc=CPU_COUNT)
     print(dset)
 
     SIMILAR_FLAG = training_args.similarity_flag
