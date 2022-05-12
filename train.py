@@ -12,7 +12,7 @@ from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorForSimilarity
 from utils.preprocessor import AnnotationRemover, BlankRemover
-from utils.normalizer import Normalizer
+from utils.normalizer import Normalizer, Convertor
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -47,10 +47,15 @@ def main():
 
     # -- Preprocessing datasets
     annotation_processor = AnnotationRemover()
-    black_processor = BlankRemover()
-    normalizer = Normalizer()
     dset = dset.map(annotation_processor, batched=True, num_proc=CPU_COUNT)
+
+    normalizer = Normalizer()
     dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
+
+    convertor = Convertor()
+    dset = dset.map(convertor, batched=True, num_proc=CPU_COUNT)
+
+    black_processor = BlankRemover()
     dset = dset.map(black_processor, batched=True, num_proc=CPU_COUNT)
     print(dset)
     
