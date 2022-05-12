@@ -1,5 +1,3 @@
-
-
 class Preprocessor : 
     def __init__(self, ) :
         pass
@@ -50,7 +48,6 @@ class Preprocessor :
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
         return self.strip(code)
-
 
     def __call__(self, datasets) :
         code1_list = []

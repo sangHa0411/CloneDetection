@@ -42,15 +42,6 @@ def main():
     dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
     print(dset)
 
-    MAX_LENGTH = 1500
-    def map_fn(data) :
-        data['code1'] = data['code1'][:MAX_LENGTH]
-        data['code2'] = data['code2'][:MAX_LENGTH]
-        return data
-
-    dset = dset.map(map_fn, batched=False, num_proc=CPU_COUNT)
-    print(dset)
-
     normalizer = Normalizer()
     dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
     print(dset)

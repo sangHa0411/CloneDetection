@@ -49,7 +49,7 @@ def main():
     preprocessor = Preprocessor()
     dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
 
-    MAX_LENGTH = 1500
+    MAX_LENGTH = 4000
     def filter_fn(data) :
         if len(data['code1']) >= MAX_LENGTH or len(data['code2']) >= MAX_LENGTH :
             return False

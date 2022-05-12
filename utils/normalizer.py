@@ -4,6 +4,26 @@ class Normalizer :
 
     def __init__(self,) :
         pass
+        
+    def get_var(self, num) :
+        tmp = num
+        code_list = []
+
+        if tmp == 0 :
+            code_list.append(0)
+
+        while tmp > 0 :
+            code = tmp % 26
+            code_list.append(code)
+            tmp = int(tmp / 26)
+
+        code_list = code_list[::-1]
+
+        char_list = []
+        for c in code_list :
+            char = chr(c + 65)
+            char_list.append(char)
+        return ''.join(char_list)
 
     def extract_vars(self, code) :
         code = re.sub('\(.+\)', '()', code)
@@ -15,8 +35,8 @@ class Normalizer :
 
     def change_vars(self, code, vars) :
         for i, v in enumerate(vars) : 
-            dummy = f'P{i}'
-            code = re.sub('(?<![a-zA-Z0-9])(?=' + v + '[^a-zA-Z0-9_])', dummy, code)
+            dummy = self.get_var(i)
+            code = re.sub('(?<![a-zA-Z0-9_])(?=' + v + '[^a-zA-Z0-9_])', dummy, code)
             code = re.sub(dummy + v, dummy, code)
         return code
 
