@@ -45,7 +45,8 @@ class Preprocessor :
         code = self.delete_block(code, '"""')
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
-        return re.sub('\s+', ' ', code)
+        code = re.sub('\s+', ' ', code).strip()
+        return code
 
     def __call__(self, datasets) :
         code1_list = []

@@ -69,8 +69,8 @@ class RobertaRBERT(RobertaPreTrainedModel):
         batch_size = len(input_ids)
         hidden_states = outputs[0]
 
-        cls_flag = input_ids == 0 
-        sep_flag = input_ids == 2
+        cls_flag = input_ids == self.config.tokenizer_cls_token_id 
+        sep_flag = input_ids == self.config.tokenizer_sep_token_id 
 
         sep_token_states = hidden_states[cls_flag + sep_flag]
         sep_token_states = sep_token_states.view(batch_size, -1, self.config.hidden_size)

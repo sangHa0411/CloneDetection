@@ -75,6 +75,8 @@ def main():
         model_class = AutoModelForSequenceClassification
     else :
         if MODEL_TYPE == 'rbert' :
+            config.tokenizer_cls_token_id = tokenizer.cls_token_id
+            config.tokenizer_sep_token_id = tokenizer.sep_token_id
             model_class = getattr('model', 'RobertaRBERT')
         else :
             assert NotImplementedError('Not Implemented Model type')
