@@ -1,3 +1,5 @@
+import re
+
 class Preprocessor : 
     def __init__(self, ) :
         pass
@@ -39,15 +41,11 @@ class Preprocessor :
 
         return '\n'.join(sens_processed)
 
-    def strip(self, code) :
-        sen_list = [sen.strip() for sen in code.split('\n') if sen != '']
-        return ' '.join(sen_list)
-
     def preprocess(self, code) :
         code = self.delete_block(code, '"""')
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
-        return self.strip(code)
+        return re.sub('\s+', ' ', code)
 
     def __call__(self, datasets) :
         code1_list = []

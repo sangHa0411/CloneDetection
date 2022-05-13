@@ -102,12 +102,7 @@ class Trainer(Trainer) :
         return loss_nll + loss_kl
 
     def get_train_dataloader(self) -> DataLoader:
-        """
-        Returns the training [`~torch.utils.data.DataLoader`].
-        Will use no sampler if `self.train_dataset` does not implement `__len__`, a random sampler (adapted to
-        distributed training if necessary) otherwise.
-        Subclass and override this method if you want to inject some custom behavior.
-        """
+
         if self.train_dataset is None:
             raise ValueError("Trainer: training requires a train_dataset.")
 

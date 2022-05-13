@@ -5,8 +5,7 @@ import pandas as pd
 import multiprocessing
 from datasets import Dataset
 from utils.encoder import Encoder
-from utils.normalizer import Normalizer
-from utils.collator import DataCollatorForSimilarity
+# from utils.normalizer import Normalizer
 from utils.preprocessor import Preprocessor
 
 from arguments import (ModelArguments, 
@@ -42,40 +41,33 @@ def main():
     dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
     print(dset)
 
-    normalizer = Normalizer()
-    dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
-    print(dset)
-
-    SIMILAR_FLAG = training_args.similarity_flag
+    # normalizer = Normalizer()
+    # dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
+    # print(dset)
 
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
-    encoder = Encoder(tokenizer, SIMILAR_FLAG, data_args.max_length)
+    encoder = Encoder(tokenizer, data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset.column_names)
+    dset = dset.remove_columns(['input_ids2', 'attention_mask2'])
     print(dset)
 
     # -- Model Class
-    if SIMILAR_FLAG :
-        model_lib = importlib.import_module('models.similar')
-        model_class = getattr(model_lib, 'RobertaForSimilarityClassification')
+    MODEL_TYPE = training_args.model_type
+    if MODEL_TYPE == 'base' :
+        model_class = AutoModelForSequenceClassification
     else :
-        MODEL_TYPE = training_args.model_type
-        if MODEL_TYPE == 'base' :
-            model_class = AutoModelForSequenceClassification
+        model_lib = importlib.import_module('models.base')
+        if MODEL_TYPE == 'rbert' :
+            model_class = getattr(model_lib, 'RobertaRBERT')
         else :
-            model_lib = importlib.import_module('models.base')
-            if MODEL_TYPE == 'rbert' :
-                model_class = getattr(model_lib, 'RobertaRBERT')
-            else :
-                assert NotImplementedError('Not Implemented Model type')
+            assert NotImplementedError('Not Implemented Model type')
 
     # -- Collator
-    collator_class = DataCollatorForSimilarity if SIMILAR_FLAG else DataCollatorWithPadding
-    data_collator = collator_class(tokenizer=tokenizer, max_length=data_args.max_length)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
     
     # -- Inference
     # -- Config & Model
-    print(model_args.PLM)
     config = AutoConfig.from_pretrained(model_args.PLM)
     model = model_class.from_pretrained(model_args.PLM, config=config)
 
