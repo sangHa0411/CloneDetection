@@ -10,7 +10,7 @@ from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import Preprocessor
-from utils.normalizer import Normalizer
+# from utils.normalizer import Normalizer
 from trainer import Trainer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -57,8 +57,8 @@ def main():
     dset = dset.filter(filter_fn, num_proc=CPU_COUNT)
     print(dset)
 
-    convertor = Normalizer()
-    dset = dset.map(convertor, batched=True, num_proc=CPU_COUNT)
+    # convertor = Normalizer()
+    # dset = dset.map(convertor, batched=True, num_proc=CPU_COUNT)
 
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)

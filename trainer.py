@@ -1,10 +1,17 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import datasets
+
+from torch.utils.data import DataLoader
 from typing import Dict, Any, List, Optional, Union, Tuple
 from transformers import Trainer
-from transformers.trainer_pt_utils import nested_detach
+from transformers.file_utils import is_datasets_available
+
+from transformers.trainer_pt_utils import nested_detach, IterableDatasetShard
+from transformers.utils import logging
+
+logger = logging.get_logger(__name__)
 
 class Trainer(Trainer) :
     def get_kl_loss(self, loss_fn, logits_1, logits_2, alpha=1) :
@@ -77,7 +84,6 @@ class Trainer(Trainer) :
 
     def compute_loss(self, model, inputs):
         num_labels = model.config.num_labels
-
         labels = inputs.pop('labels')
 
         outputs1 = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])
@@ -94,3 +100,47 @@ class Trainer(Trainer) :
         loss_fct_2 = nn.KLDivLoss(reduction='batchmean')
         loss_kl = self.get_kl_loss(loss_fct_2, logits1, logits2)
         return loss_nll + loss_kl
+
+    def get_train_dataloader(self) -> DataLoader:
+        """
+        Returns the training [`~torch.utils.data.DataLoader`].
+        Will use no sampler if `self.train_dataset` does not implement `__len__`, a random sampler (adapted to
+        distributed training if necessary) otherwise.
+        Subclass and override this method if you want to inject some custom behavior.
+        """
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+
+        train_dataset = self.train_dataset
+        # if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
+        #     train_dataset = self._remove_unused_columns(train_dataset, description="training")
+        
+        if isinstance(train_dataset, torch.utils.data.IterableDataset):
+            if self.args.world_size > 1:
+                train_dataset = IterableDatasetShard(
+                    train_dataset,
+                    batch_size=self.args.train_batch_size,
+                    drop_last=self.args.dataloader_drop_last,
+                    num_processes=self.args.world_size,
+                    process_index=self.args.process_index,
+                )
+
+            return DataLoader(
+                train_dataset,
+                batch_size=self.args.per_device_train_batch_size,
+                collate_fn=self.data_collator,
+                num_workers=self.args.dataloader_num_workers,
+                pin_memory=self.args.dataloader_pin_memory,
+            )
+
+        train_sampler = self._get_train_sampler()
+
+        return DataLoader(
+            train_dataset,
+            batch_size=self.args.train_batch_size,
+            sampler=train_sampler,
+            collate_fn=self.data_collator,
+            drop_last=self.args.dataloader_drop_last,
+            num_workers=self.args.dataloader_num_workers,
+            pin_memory=self.args.dataloader_pin_memory,
+        )

@@ -15,11 +15,20 @@ class DataCollatorWithPadding:
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         input_ids2 = [feature["input_ids2"] for feature in features] if "input_ids2" in features[0].keys() else None
+        padding_side = self.tokenizer.padding_side
+
         if input_ids2 is not None:
             max_input_ids2_length = max(len(l) for l in input_ids2)
             for feature in features:
-                feature["input_ids2"] = feature["input_ids2"] + [self.tokenizer.pad_token_id] * (max_input_ids2_length - len(feature["input_ids2"]))
-                feature["attention_mask2"] = feature["attention_mask2"] + [0] * (max_input_ids2_length - len(feature["input_ids2"]))
+                remainder = [self.tokenizer.pad_token_id] * (max_input_ids2_length - len(feature["input_ids2"]))
+                feature["input_ids2"] = (feature["input_ids2"] + remainder if padding_side == "right" else remainder + feature["input_ids2"])
+
+        attention_mask2 = [feature["attention_mask2"] for feature in features] if "attention_mask2" in features[0].keys() else None
+        if attention_mask2 is not None:
+            max_attention_mask2_length = max(len(l) for l in attention_mask2)
+            for feature in features:
+                remainder = [0] * (max_attention_mask2_length - len(feature["attention_mask2"]))
+                feature["attention_mask2"] = (feature["attention_mask2"] + remainder if padding_side == "right" else remainder + feature["attention_mask2"])
                 
         batch = self.tokenizer.pad(
             features,
@@ -28,6 +37,7 @@ class DataCollatorWithPadding:
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors=self.return_tensors,
         )
+
         if "label" in batch:
             batch["labels"] = batch["label"]
             del batch["label"]
