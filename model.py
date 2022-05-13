@@ -6,17 +6,6 @@ from typing import Optional, Union, Tuple
 from transformers import RobertaPreTrainedModel, RobertaModel
 from transformers.modeling_outputs import ModelOutput, SequenceClassifierOutput
 
-@dataclass
-class SimilarityOutput(ModelOutput):
-    loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
-    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
-    hidden_states1: Optional[Tuple[torch.FloatTensor]] = None
-    attentions1: Optional[Tuple[torch.FloatTensor]] = None
-    hidden_states2: Optional[Tuple[torch.FloatTensor]] = None
-    attentions2: Optional[Tuple[torch.FloatTensor]] = None
-
-
 class RobertaClassificationHead(nn.Module):
     def __init__(self, hidden_size, dropout, num_labels):
         super().__init__()

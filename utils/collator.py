@@ -4,7 +4,7 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.data.data_collator import PaddingStrategy
 
 @dataclass
-class DataCollatorForSimilarity:
+class DataCollatorWithPadding:
 
     tokenizer: PreTrainedTokenizerBase
     padding: Union[bool, str, PaddingStrategy] = True
@@ -17,18 +17,9 @@ class DataCollatorForSimilarity:
         input_ids2 = [feature["input_ids2"] for feature in features] if "input_ids2" in features[0].keys() else None
         if input_ids2 is not None:
             max_input_ids2_length = max(len(l) for l in input_ids2)
-            padding_side = self.tokenizer.padding_side
             for feature in features:
-                remainder = [self.tokenizer.pad_token_id] * (max_input_ids2_length - len(feature["input_ids2"]))
-                feature["input_ids2"] = (feature["input_ids2"] + remainder if padding_side == "right" else remainder + feature["input_ids2"])
-
-        attention_mask2 = [feature["attention_mask2"] for feature in features] if "attention_mask2" in features[0].keys() else None
-        if attention_mask2 is not None:
-            max_attention_mask2_length = max(len(l) for l in attention_mask2)
-            padding_side = self.tokenizer.padding_side
-            for feature in features:
-                remainder = [0] * (max_attention_mask2_length - len(feature["attention_mask2"]))
-                feature["attention_mask2"] = (feature["attention_mask2"] + remainder if padding_side == "right" else remainder + feature["attention_mask2"])
+                feature["input_ids2"] = feature["input_ids2"] + [self.tokenizer.pad_token_id] * (max_input_ids2_length - len(feature["input_ids2"]))
+                feature["attention_mask2"] = feature["attention_mask2"] + [0] * (max_input_ids2_length - len(feature["input_ids2"]))
                 
         batch = self.tokenizer.pad(
             features,
