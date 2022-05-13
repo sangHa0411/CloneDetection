@@ -38,10 +38,6 @@ class MyTrainingArguments(TrainingArguments):
     report_to: Optional[str] = field(
         default='wandb',
     )
-    similarity_flag : Optional[bool] = field(
-        default=False,
-        metadata={"help" : "using cosing similarity model"}
-    )
     model_type: Optional[str] = field(
         default='base',
         metadata={"help" : "model type"}
