@@ -86,15 +86,17 @@ class Trainer(Trainer) :
         num_labels = model.config.num_labels
         labels = inputs.pop('labels')
 
+        # cls code1 sep sep code2 sep
         outputs1 = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])
         logits1 = outputs1.logits
 
+        # cls code2 sep sep code2 sep
         outputs2 = model(input_ids=inputs['input_ids2'], attention_mask=inputs['attention_mask2'])
         logits2 = outputs2.logits
 
         # Crossentropy Loss    
         loss_fct_1 = nn.CrossEntropyLoss()
-        loss_nll = loss_fct_1(logits1.view(-1, num_labels), labels.view(-1)) + loss_fct_1(logits2.view(-1, num_labels), labels.view(-1))
+        loss_nll = (loss_fct_1(logits1.view(-1, num_labels), labels.view(-1)) + loss_fct_1(logits2.view(-1, num_labels), labels.view(-1))) / 2
 
         # KL-Divergence Loss
         loss_fct_2 = nn.KLDivLoss(reduction='batchmean')

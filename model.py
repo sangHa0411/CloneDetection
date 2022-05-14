@@ -69,15 +69,16 @@ class RobertaRBERT(RobertaPreTrainedModel):
         batch_size = len(input_ids)
         hidden_states = outputs[0]
 
-        cls_flag = input_ids == self.config.tokenizer_cls_token_id 
-        sep_flag = input_ids == self.config.tokenizer_sep_token_id 
+        # CLS code1 SEP SEP code2 SEP
+        cls_flag = input_ids == self.config.tokenizer_cls_token_id # cls token
+        sep_flag = input_ids == self.config.tokenizer_sep_token_id # sep token 
 
-        sep_token_states = hidden_states[cls_flag + sep_flag]
-        sep_token_states = sep_token_states.view(batch_size, -1, self.config.hidden_size)
-        sep_hidden_states = self.net(sep_token_states)
+        sep_token_states = hidden_states[cls_flag + sep_flag] # (batch_size * 4, hidden_size)
+        sep_token_states = sep_token_states.view(batch_size, -1, self.config.hidden_size) # (batch_size, 4, hidden_size)
+        sep_hidden_states = self.net(sep_token_states) # (batch_size, 4, hidden_size)
 
-        pooled_output = sep_hidden_states.view(batch_size, -1)
-        logits = self.classifier(pooled_output)
+        pooled_output = sep_hidden_states.view(batch_size, -1) # (batch_size, hidden_size * 4)
+        logits = self.classifier(pooled_output) # (batch_size, 2)
 
         loss = None
         if labels is not None:
