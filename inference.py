@@ -5,7 +5,6 @@ import pandas as pd
 import multiprocessing
 from datasets import Dataset
 from utils.encoder import Encoder
-# from utils.normalizer import Normalizer
 from utils.preprocessor import Preprocessor
 
 from arguments import (ModelArguments, 
@@ -41,10 +40,6 @@ def main():
     dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
     print(dset)
 
-    # normalizer = Normalizer()
-    # dset = dset.map(normalizer, batched=True, num_proc=CPU_COUNT)
-    # print(dset)
-
     # -- Tokenizing & Encoding
     tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
     encoder = Encoder(tokenizer, data_args.max_length)
@@ -57,7 +52,7 @@ def main():
     if MODEL_TYPE == 'base' :
         model_class = AutoModelForSequenceClassification
     else :
-        model_lib = importlib.import_module('models.base')
+        model_lib = importlib.import_module('model')
         if MODEL_TYPE == 'rbert' :
             model_class = getattr(model_lib, 'RobertaRBERT')
         else :
