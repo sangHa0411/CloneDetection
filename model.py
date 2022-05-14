@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dataclasses import dataclass
+import copy
 from typing import Optional, Union, Tuple
 from transformers import (
     RobertaPreTrainedModel,
