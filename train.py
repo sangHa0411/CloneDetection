@@ -12,7 +12,7 @@ from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import Preprocessor
-from trainer import Trainer
+# from trainer import Trainer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -24,7 +24,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
     HfArgumentParser,
-    # Trainer,
+    Trainer,
 )
 
 def main():
@@ -59,8 +59,10 @@ def main():
     print(dset)
 
     # -- Tokenizing & Encoding
+    MODEL_CATEGORY = training_args.model_category
+
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-    encoder = Encoder(tokenizer, max_input_length=data_args.max_length)
+    encoder = Encoder(tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=CPU_COUNT, remove_columns=dset['train'].column_names)
     print(dset)
 
@@ -70,9 +72,8 @@ def main():
     config.tokenizer_cls_token_id = tokenizer.cls_token_id
     config.tokenizer_sep_token_id = tokenizer.sep_token_id
     
-    MODEL_CATEGORY = training_args.model_category
-    MODEL_NAME = training_args.model_name
     
+    MODEL_NAME = training_args.model_name
     if MODEL_NAME == 'base' :
         model_class = AutoModelForSequenceClassification
     else :
@@ -89,15 +90,13 @@ def main():
         WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
         wandb.login(key=WANDB_AUTH_KEY)
 
-        group_name = MODEL_CATEGORY + '_' + model_args.PLM
-
         name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
         name += MODEL_NAME
         
         wandb.init(
             entity="poolc",
             project=logging_args.project_name,
-            group=group_name,
+            group=model_args.PLM,
             name=name
         )
         wandb.config.update(training_args)

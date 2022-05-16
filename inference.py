@@ -3,6 +3,7 @@ import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
+import transformers
 from datasets import Dataset
 from utils.encoder import Encoder
 from utils.preprocessor import Preprocessor
@@ -29,6 +30,7 @@ def main():
     model_args, data_args, training_args, inference_args = parser.parse_args_into_dataclasses()
 
     # -- Loading datasets
+    # transformers.logging.set_verbosity_error()
     df = pd.read_csv(os.path.join(data_args.date_path, 'test.csv'))
     dset = Dataset.from_pandas(df)
     print(dset)
@@ -41,8 +43,10 @@ def main():
     print(dset)
 
     # -- Tokenizing & Encoding
-    tokenizer = AutoTokenizer.from_pretrained(inference_args.tokenizer)
-    encoder = Encoder(tokenizer, data_args.max_length)
+    MODEL_CATEGORY = training_args.model_category
+
+    tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
+    encoder = Encoder(tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset.column_names)
     dset = dset.remove_columns(['input_ids2', 'attention_mask2'])
     print(dset)
@@ -53,7 +57,6 @@ def main():
     if MODEL_NAME == 'base' :
         model_class = AutoModelForSequenceClassification
     else :
-        MODEL_CATEGORY = training_args.model_category
         model_category = importlib.import_module('models.' + MODEL_CATEGORY)
         model_class = getattr(model_category, MODEL_NAME)
         
@@ -64,6 +67,7 @@ def main():
     # -- Config & Model
     config = AutoConfig.from_pretrained(model_args.PLM)
     model = model_class.from_pretrained(model_args.PLM, config=config)
+    breakpoint()
 
     trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
         model=model,                         # trained model
