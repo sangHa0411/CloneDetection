@@ -48,16 +48,15 @@ def main():
     print(dset)
 
     # -- Model Class
-    MODEL_TYPE = training_args.model_type
-    if MODEL_TYPE == 'base' :
+    MODEL_NAME = training_args.model_name
+
+    if MODEL_NAME == 'base' :
         model_class = AutoModelForSequenceClassification
     else :
-        model_lib = importlib.import_module('model')
-        if MODEL_TYPE == 'rbert' :
-            model_class = getattr(model_lib, 'RobertaRBERT')
-        else :
-            assert NotImplementedError('Not Implemented Model type')
-
+        MODEL_CATEGORY = training_args.model_category
+        model_category = importlib.import_module('models.' + MODEL_CATEGORY)
+        model_class = getattr(model_category, MODEL_NAME)
+        
     # -- Collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
     

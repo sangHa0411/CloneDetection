@@ -5,6 +5,7 @@ import random
 import numpy as np
 import importlib
 import multiprocessing
+import transformers
 from dotenv import load_dotenv
 from datasets import load_dataset
 from utils.metric import compute_metrics
@@ -66,19 +67,18 @@ def main():
     # -- Config & Model Class
     config = AutoConfig.from_pretrained(model_args.PLM)
     config.num_labels = 2
+    config.tokenizer_cls_token_id = tokenizer.cls_token_id
+    config.tokenizer_sep_token_id = tokenizer.sep_token_id
     
-    MODEL_TYPE = training_args.model_type
-    if MODEL_TYPE == 'base' :
+    MODEL_CATEGORY = training_args.model_category
+    MODEL_NAME = training_args.model_name
+    
+    if MODEL_NAME == 'base' :
         model_class = AutoModelForSequenceClassification
     else :
-        model_lib = importlib.import_module('model')
-        if MODEL_TYPE == 'rbert' :
-            config.tokenizer_cls_token_id = tokenizer.cls_token_id
-            config.tokenizer_sep_token_id = tokenizer.sep_token_id
-            model_class = getattr(model_lib, 'RobertaRBERT')
-        else :
-            assert NotImplementedError('Not Implemented Model type')
-
+        model_category = importlib.import_module('models.' + MODEL_CATEGORY)
+        model_class = getattr(model_category, MODEL_NAME)
+   
     # -- Collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
 
@@ -89,13 +89,13 @@ def main():
         WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
         wandb.login(key=WANDB_AUTH_KEY)
 
-        group_name = model_args.PLM
+        group_name = MODEL_CATEGORY + '_' + model_args.PLM
 
         name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
-        name += MODEL_TYPE
+        name += MODEL_NAME
         
         wandb.init(
-            entity="sangha0411",
+            entity="poolc",
             project=logging_args.project_name,
             group=group_name,
             name=name
