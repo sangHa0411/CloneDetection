@@ -11,7 +11,7 @@ class ModelArguments :
         },
     )
     save_path: str = field(
-        default="./checkpoints",
+        default="checkpoints",
         metadata={
             "help": "Path to save checkpoint from fine tune model"
         },
@@ -26,7 +26,7 @@ class DataTrainingArguments:
         },
     )
     date_path: str = field(
-        default='./data',
+        default='data',
         metadata={
             "help": "Data directory"
         }
@@ -38,19 +38,23 @@ class MyTrainingArguments(TrainingArguments):
     report_to: Optional[str] = field(
         default='wandb',
     )
-    model_type: Optional[str] = field(
+    model_name: Optional[str] = field(
         default='base',
-        metadata={"help" : "model type"}
+        metadata={"help" : "model class if class is base, it returns AutoModelForSequenceClassification class"}
+    )
+    model_category: Optional[str] = field(
+        default='plbart',
+        metadata={"help" : "model category (plbart, t5, codebert)"}
     )
 
 @dataclass
 class LoggingArguments:
     dotenv_path: Optional[str] = field(
-        default='./wandb.env',
+        default='wandb.env',
         metadata={"help":'input your dotenv path'},
     )
     project_name: Optional[str] = field(
-        default="Code Similarity Checker",
+        default="Dacon - Clone Detction",
         metadata={"help": "project name"},
     )
 
