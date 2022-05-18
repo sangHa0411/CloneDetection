@@ -41,10 +41,21 @@ class Preprocessor :
 
         return '\n'.join(sens_processed)
 
+    def delete_import(self, code) :
+        sens = code.split('\n')
+
+        sens_processed = []
+        for sen in sens :
+            if 'import' not in sen :
+                sens_processed.append(sen)
+
+        return '\n'.join(sens_processed)
+
     def preprocess(self, code) :
         code = self.delete_block(code, '"""')
         code = self.delete_block(code, "'''")
         code = self.delete_annotation(code)
+        code = self.delete_import(code)
         code = re.sub('\s+', ' ', code).strip()
         return code
 
