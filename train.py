@@ -5,14 +5,13 @@ import random
 import numpy as np
 import importlib
 import multiprocessing
-import transformers
 from dotenv import load_dotenv
 from datasets import load_dataset
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import Preprocessor
-# from trainer import Trainer
+from trainer import Trainer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
     MyTrainingArguments, 
@@ -24,21 +23,19 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
     HfArgumentParser,
-    Trainer,
 )
 
 def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, MyTrainingArguments, LoggingArguments)
     )
-    # transformers.logging.set_verbosity_error()
     model_args, data_args, training_args, logging_args = parser.parse_args_into_dataclasses()
     seed_everything(training_args.seed)
 
     load_dotenv(dotenv_path=logging_args.dotenv_path)
-    POOLC_AUTH_KEY = os.getenv("POOLC_AUTH_KEY")   
-    # -- Loading datasets
+    POOLC_AUTH_KEY = os.getenv("POOLC_AUTH_KEY")  
 
+    # -- Loading datasets
     dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
     print(dset)
 
@@ -84,18 +81,24 @@ def main():
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, max_length=data_args.max_length)
 
     if training_args.do_train:
+        training_args.remove_unused_columns = False
         model = model_class.from_pretrained(model_args.PLM, config=config)
          
         # -- Wandb
         WANDB_AUTH_KEY = os.getenv("WANDB_AUTH_KEY")
         wandb.login(key=WANDB_AUTH_KEY)
 
-        name = f"EP:{training_args.num_train_epochs}_LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
+        if training_args.max_steps == -1 :
+            name = f"EP:{training_args.num_train_epochs}_"
+        else :
+            name = f"MS:{training_args.max_steps}_"
+            
+        name += f"LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
         name += MODEL_NAME
         
         wandb.init(
-            entity="poolc",
-            project=logging_args.project_name,
+            entity="sangha0411",
+            project="Code Similarity Checker", #logging_args.project_name,
             group=model_args.PLM,
             name=name
         )

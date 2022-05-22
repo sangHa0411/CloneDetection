@@ -3,10 +3,11 @@ import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
-import transformers
 from datasets import Dataset
+from trainer import Trainer
 from utils.encoder import Encoder
 from utils.preprocessor import Preprocessor
+from utils.collator import DataCollatorWithPadding
 
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -18,9 +19,7 @@ from transformers import (
     AutoConfig,
     AutoTokenizer,
     AutoModelForSequenceClassification,
-    DataCollatorWithPadding,
     HfArgumentParser,
-    Trainer,
 )
 
 def main():
@@ -48,7 +47,6 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset.column_names)
-    dset = dset.remove_columns(['input_ids2', 'attention_mask2'])
     print(dset)
 
     # -- Model Class
@@ -67,7 +65,7 @@ def main():
     # -- Config & Model
     config = AutoConfig.from_pretrained(model_args.PLM)
     model = model_class.from_pretrained(model_args.PLM, config=config)
-    breakpoint()
+    training_args.remove_unused_columns = False
 
     trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
         model=model,                         # trained model
