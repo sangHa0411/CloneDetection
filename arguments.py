@@ -64,7 +64,3 @@ class InferenceArguments:
         default='base.csv',
         metadata={"help" : "The csv file for test dataset"}
     )
-    tokenizer:  Optional[str] = field(
-        default='microsoft/codebert-base',
-        metadata={"help" : "Name of tokenizer"}
-    )

@@ -55,7 +55,6 @@ class Trainer(Trainer) :
             if prediction_loss_only:
                 return (loss, None, None)
 
-            logits = nested_detach(logits)
             if len(logits) == 1:
                 logits = logits[0]
 
@@ -69,7 +68,7 @@ class Trainer(Trainer) :
         outputs1 = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])
         logits1 = outputs1.logits
 
-        # cls code2 sep sep code2 sep
+        # cls code2 sep sep code1 sep
         outputs2 = model(input_ids=inputs['input_ids2'], attention_mask=inputs['attention_mask2'])
         logits2 = outputs2.logits
 
