@@ -32,7 +32,7 @@ class FunctionPreprocessor :
 
         return code
 
-    def normalize(self, code) :
+    def preprocess(self, code) :
         code = '\n' + code
         fn_list = self.get_function(code)
         if len(fn_list) == 0 :
@@ -52,8 +52,8 @@ class FunctionPreprocessor :
 
         size = len(datasets['code1'])
         for i in range(size) :
-            code1 = self.normalize(datasets['code1'][i])
-            code2 = self.normalize(datasets['code2'][i])
+            code1 = self.preprocess(datasets['code1'][i])
+            code2 = self.preprocess(datasets['code2'][i])
             
             code1_list.append(code1)
             code2_list.append(code2)
