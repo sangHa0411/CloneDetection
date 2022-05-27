@@ -99,8 +99,8 @@ def main():
         name += MODEL_NAME
         
         wandb.init(
-            entity="sangha0411",
-            project="Code Similarity Checker", #logging_args.project_name,
+            entity="poolc",
+            project=logging_args.project_name,
             group=model_args.PLM,
             name=name
         )
