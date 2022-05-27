@@ -3,10 +3,11 @@ import importlib
 import numpy as np
 import pandas as pd 
 import multiprocessing
-import transformers
 from datasets import Dataset
+from trainer import Trainer
 from utils.encoder import Encoder
-from utils.preprocessor import Preprocessor
+from utils.collator import DataCollatorWithPadding
+from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor
 
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -18,9 +19,7 @@ from transformers import (
     AutoConfig,
     AutoTokenizer,
     AutoModelForSequenceClassification,
-    DataCollatorWithPadding,
     HfArgumentParser,
-    Trainer,
 )
 
 def main():
@@ -38,9 +37,11 @@ def main():
     CPU_COUNT = multiprocessing.cpu_count() // 2
 
     # -- Preprocessing datasets
-    preprocessor = Preprocessor()
-    dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
-    print(dset)
+    fn_preprocessor = FunctionPreprocessor()
+    dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
+
+    an_preprocessor = AnnotationPreprocessor()
+    dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
 
     # -- Tokenizing & Encoding
     MODEL_CATEGORY = training_args.model_category
@@ -48,7 +49,6 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length)
     dset = dset.map(encoder, batched=True, num_proc=multiprocessing.cpu_count(), remove_columns=dset.column_names)
-    dset = dset.remove_columns(['input_ids2', 'attention_mask2'])
     print(dset)
 
     # -- Model Class
@@ -67,7 +67,7 @@ def main():
     # -- Config & Model
     config = AutoConfig.from_pretrained(model_args.PLM)
     model = model_class.from_pretrained(model_args.PLM, config=config)
-    breakpoint()
+    training_args.remove_unused_columns = False
 
     trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
         model=model,                         # trained model
