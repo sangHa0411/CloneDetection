@@ -46,6 +46,10 @@ class MyTrainingArguments(TrainingArguments):
         default='plbart',
         metadata={"help" : "model category (plbart, t5, codebert)"}
     )
+    fold_size: Optional[str] = field(
+        default=5,
+        metadata={"help" : "K-fold training"}
+    )
 
 @dataclass
 class LoggingArguments:
@@ -63,4 +67,8 @@ class InferenceArguments:
     file_name : Optional[str] = field(
         default='base.csv',
         metadata={"help" : "The csv file for test dataset"}
+    )
+    tokenizer : Optional[str] = field(
+        default="uclanlp/plbart-large",
+        metadata={"help" : "tokenizer"}
     )
