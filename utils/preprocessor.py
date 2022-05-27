@@ -1,6 +1,69 @@
 import re
 
-class Preprocessor : 
+class FunctionPreprocessor :
+
+    def __init__(self, ) :
+        pass
+
+    def get_function(self, code) : 
+        results = []
+        fn_list = re.findall('\ndef [a-zA-Z0-9_]+\(', code)
+
+        for fn in fn_list :
+            results.append(fn[4:-1].strip())
+        return results
+   
+    def determine_function(self, code, function_name) :
+        num = len(re.findall('[^a-zA-Z]' + function_name + '[^a-zA-Z]', code))
+        return False if num <= 1 else True      
+
+    def delete_function(self, code, name) :
+        start_id, _ = re.search('def ' + name, code).span()
+        ptr = start_id 
+
+        while ptr < len(code) - 1 :
+            if code[ptr] == '\n' and re.search('[a-zA-Z]', code[ptr+1]) is not None :
+                break
+            ptr += 1
+
+        if ptr != len(code) - 1 :
+            end_id = ptr
+            code = code[:start_id] + code[end_id:]
+
+        return code
+
+    def normalize(self, code) :
+        code = '\n' + code
+        fn_list = self.get_function(code)
+        if len(fn_list) == 0 :
+            return code
+
+        for fn in fn_list :
+            flag = self.determine_function(code, fn)
+
+            if flag == False :
+                code = self.delete_function(code, fn)
+
+        return code
+
+    def __call__(self, datasets) :
+        code1_list = []
+        code2_list = []
+
+        size = len(datasets['code1'])
+        for i in range(size) :
+            code1 = self.normalize(datasets['code1'][i])
+            code2 = self.normalize(datasets['code2'][i])
+            
+            code1_list.append(code1)
+            code2_list.append(code2)
+
+        datasets['code1'] = code1_list
+        datasets['code2'] = code2_list
+        return datasets
+
+class AnnotationPreprocessor : 
+    
     def __init__(self, ) :
         pass
 
