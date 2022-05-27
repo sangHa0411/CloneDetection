@@ -10,7 +10,7 @@ from datasets import load_dataset
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
-from utils.preprocessor import Preprocessor
+from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor
 from trainer import Trainer
 from arguments import (ModelArguments, 
     DataTrainingArguments, 
@@ -41,10 +41,6 @@ def main():
 
     CPU_COUNT = multiprocessing.cpu_count() // 2
 
-    # -- Preprocessing datasets
-    preprocessor = Preprocessor()
-    dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
-
     MAX_LENGTH = 4000
     def filter_fn(data) :
         if len(data['code1']) >= MAX_LENGTH or len(data['code2']) >= MAX_LENGTH :
@@ -54,6 +50,13 @@ def main():
 
     dset = dset.filter(filter_fn, num_proc=CPU_COUNT)
     print(dset)
+
+    # -- Preprocessing datasets
+    fn_preprocessor = FunctionPreprocessor()
+    dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
+
+    an_preprocessor = AnnotationPreprocessor()
+    dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
 
     # -- Tokenizing & Encoding
     MODEL_CATEGORY = training_args.model_category
@@ -68,7 +71,6 @@ def main():
     config.num_labels = 2
     config.tokenizer_cls_token_id = tokenizer.cls_token_id
     config.tokenizer_sep_token_id = tokenizer.sep_token_id
-    
     
     MODEL_NAME = training_args.model_name
     if MODEL_NAME == 'base' :
