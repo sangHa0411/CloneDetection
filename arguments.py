@@ -46,7 +46,7 @@ class MyTrainingArguments(TrainingArguments):
         default='plbart',
         metadata={"help" : "model category (plbart, t5, codebert)"}
     )
-    fold_size: Optional[str] = field(
+    fold_size: Optional[int] = field(
         default=5,
         metadata={"help" : "K-fold training"}
     )

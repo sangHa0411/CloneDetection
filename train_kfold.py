@@ -6,7 +6,7 @@ import numpy as np
 import importlib
 import multiprocessing
 from dotenv import load_dotenv
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
@@ -40,6 +40,8 @@ def main():
     dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
     print(dset)
 
+    dset = concatenate_datasets([dset['train'], dset['val']])
+
     CPU_COUNT = multiprocessing.cpu_count() // 2
 
     MAX_LENGTH = 4000
@@ -64,7 +66,7 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
     encoder = Encoder(tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length)
-    dset = dset.map(encoder, batched=True, num_proc=CPU_COUNT, remove_columns=dset['train'].column_names)
+    dset = dset.map(encoder, batched=True, num_proc=CPU_COUNT, remove_columns=dset.column_names)
     print(dset)
 
     # -- Config & Model Class
