@@ -40,7 +40,7 @@ def main():
     dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
     print(dset)
 
-    dset = concatenate_datasets([dset['train'], dset['val']])
+    dset = concatenate_datasets([dset['train'], dset['val']]).shuffle(training_args.seed)
 
     CPU_COUNT = multiprocessing.cpu_count() // 2
 

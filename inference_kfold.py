@@ -68,14 +68,14 @@ def main():
     # -- Inference
     outputs = []
     K_FOLD = training_args.fold_size
-    for i in tqdm(range(K_FOLD)) :
+    training_args.remove_unused_columns = False
 
+    for i in tqdm(range(K_FOLD)) :
         # -- Config & Model
         model_path = os.path.join(model_args.PLM, f"fold_{i}")
 
         config = AutoConfig.from_pretrained(model_path)
         model = model_class.from_pretrained(model_path, config=config)
-        training_args.remove_unused_columns = False
 
         trainer = Trainer(                       # the instantiated 🤗 Transformers model to be trained
             model=model,                         # trained model
