@@ -61,63 +61,112 @@ class Encoder:
                 }
             )
         elif self.model_category == "t5":
-            batch_size = len(examples["code1"])
-            max_input_length = int(self.max_input_length / 2)
-
-            code1_inputs = self.tokenizer(
-                examples["code1"],
-                max_length=max_input_length,
-                return_token_type_ids=False,
-                truncation=True,
-            )
-
-            code2_inputs = self.tokenizer(
-                examples["code2"],
-                max_length=max_input_length,
-                return_token_type_ids=False,
-                truncation=True,
-            )
-
-            input_ids1 = []
-            input_ids2 = []
-            attention_mask1 = []
-            attention_mask2 = []
+            batch_size = len(examples['code1'])
+    
+            list_input_ids = []
+            list_attention_mask = []
+            list_hypothesis_mask = []
+            list_premise_mask = []
+            list_last_token_index = []
 
             for i in range(batch_size):
-                input_ids1.append(
-                    [self.tokenizer.cls_token_id]
-                    + code1_inputs["input_ids"][i]
-                    + [self.tokenizer.sep_token_id]
-                    + code2_inputs["input_ids"][i]
-                )
-                input_ids2.append(
-                    [self.tokenizer.cls_token_id]
-                    + code2_inputs["input_ids"][i]
-                    + [self.tokenizer.sep_token_id]
-                    + code1_inputs["input_ids"][i]
-                )
+            # print(examples)
+            # randomly switching code1 and code2
+                if 'similar' in examples :
+                    k = random.randint(0, 1) # decide on k once
+                    if k == 0:
+                        code1 = examples["code1"][i] # pretrained format
+                        code2 = examples["code2"][i] # pretrained format
+                    elif k == 1:
+                        code2 = examples["code1"][i] # pretrained format
+                        code1 = examples["code2"][i] # pretrained format
+                else:
+                    code1 = examples["code1"][i] # pretrained format
+                    code2 = examples["code2"][i] # pretrained format
+                """preprocessing function"""
+                code1_input_ids = self.tokenizer(code1, max_length=self.max_input_length, add_special_tokens=False,truncation=True).input_ids
+                code2_input_ids = self.tokenizer(code2, max_length=self.max_input_length, add_special_tokens=False,truncation=True).input_ids
+                len_input_ids = 1 + len(code1_input_ids) + len(code2_input_ids) + 2 + 1 # <s> </s></s> </s>
+                
+                # normalize length for overflowing codes by truncation
+                code_max_length = self.max_input_length - 4
+                if len_input_ids >= self.max_input_length:
+                    # get tokenized length of each codes
+                    code1_length_t5, code2_length_t5 = len(code1_input_ids)/(code_max_length), len(code2_input_ids)/(code_max_length)
+                    # softmax to make normalized sum to be come (code_max_length)
+                    codes_length = [code1_length_t5, code2_length_t5]
+                    codes_length = np.exp(codes_length) / np.sum(np.exp(codes_length))
+                    normalized_code_length = codes_length * (code_max_length)
+                    normalized_code_length = np.round(normalized_code_length).astype(int)
+                    code1_input_ids = self.tokenizer(code1, max_length=normalized_code_length[0], add_special_tokens=False,truncation=True).input_ids
+                    # print("code1_input_ids", len(code1_input_ids))
+                    code2_input_ids = self.tokenizer(code2, max_length=normalized_code_length[1], add_special_tokens=False,truncation=True).input_ids
+                    # print("code2_input_ids", len(code2_input_ids))
+                else:
+                    pass
+                
+                # construct input sequence
+                input_ids = \
+                        [self.tokenizer.cls_token_id] + code1_input_ids + \
+                        [self.tokenizer.sep_token_id] + [self.tokenizer.sep_token_id] + \
+                        code2_input_ids
 
-                attention_mask1.append(
-                    [1]
-                    + code1_inputs["attention_mask"][i]
-                    + [1]
-                    + code2_inputs["attention_mask"][i]
-                )
-                attention_mask2.append(
-                    [1]
-                    + code2_inputs["attention_mask"][i]
-                    + [1]
-                    + code1_inputs["attention_mask"][i]
-                )
+                # exception handling when constructed sequence overflows
+                if len(input_ids) >= self.max_input_length:
+                    input_ids = input_ids[:self.max_input_length]
+                    input_ids[-1] = self.tokenizer.sep_token_id
+                elif len(input_ids) < self.max_input_length:
+                    input_ids += [self.tokenizer.sep_token_id]
 
-            model_inputs = BatchEncoding(
-                {
-                    "input_ids": input_ids1,
-                    "attention_mask": attention_mask1,
-                    "input_ids2": input_ids2,
-                    "attention_mask2": attention_mask2,
-                }
-            )
+                # input token indexing for Improved Baseline format
+                cls_token_index = 0
+                first_token_start_index = cls_token_index + 1
+                first_sep_token_index = first_token_start_index + len(code1_input_ids)
+                second_sep_token_index = first_sep_token_index + 1
+                begin_second_code = second_sep_token_index + 1
+                
+                if len(input_ids) >= self.max_input_length:
+                    third_sep_token_index = self.max_input_length - 1 
+                else:
+                    third_sep_token_index = begin_second_code + len(code2_input_ids)
+
+                premise_mask, hypothesis_mask = add_entity_mask(
+                        len(input_ids),
+                        first_token_start_index,
+                        first_sep_token_index-1,
+                        begin_second_code,
+                        third_sep_token_index-1
+                )
+                
+                padding = [0] * max(0, self.max_input_length - len(input_ids))
+                attention_mask = np.array([1] * len(input_ids) + padding)
+                
+                if len(input_ids) < self.max_input_length:
+                    input_ids = np.concatenate((input_ids, padding), axis=None) 
+                premise_mask = np.concatenate((premise_mask.astype(int), padding), axis=None)
+                premise_mask = premise_mask.astype(int)
+                hypothesis_mask = np.concatenate((hypothesis_mask.astype(int), padding), axis=None)
+                hypothesis_mask = hypothesis_mask.astype(int)
+
+                list_input_ids.append(input_ids)
+                list_attention_mask.append(attention_mask)
+                list_hypothesis_mask.append(hypothesis_mask)
+                list_premise_mask.append(premise_mask)
+                list_last_token_index.append(third_sep_token_index)
+            
+            # Wrap as batch format
+            model_inputs = BatchEncoding({
+                "input_ids": list_input_ids,
+                "attention_mask": list_attention_mask,
+                # "hypothesis_mask": list_hypothesis_mask,
+                # "premise_mask": list_premise_mask,
+                "last_token_index": list_last_token_index,
+            })
+            if 'similar' in examples :
+                model_inputs['labels'] = [int(x) for x in examples['similar']]
+                
+            return model_inputs
+        
         elif self.model_category == "plbart":
             # define special token if using plbart
             python_token = self.tokenizer(
