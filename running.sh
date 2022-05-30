@@ -34,3 +34,20 @@ python inference.py \
 --PLM checkpoints \
 --fp16 \
 --per_device_eval_batch_size 32
+
+# hyperparameter search
+python search.py \
+--do_train \
+--fp16 \
+--logging_steps 500 \
+--save_strategy no \
+--evaluation_strategy steps \
+--eval_steps 1000 \
+--PLM microsoft/codebert-base \
+--model_category codebert \
+--model_name RobertaRBERT \
+--overwrite_output_dir \
+--output_dir ./exps \
+--per_device_eval_batch_size 32 \
+--logging_dir ./logs \
+--metric_for_best_model accuracy
