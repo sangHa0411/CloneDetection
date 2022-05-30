@@ -36,7 +36,12 @@ def main():
     POOLC_AUTH_KEY = os.getenv("POOLC_AUTH_KEY")  
 
     # -- Loading datasets
-    dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
+    # dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
+    dset = load_dataset("PoolC/clone-det-all", use_auth_token=POOLC_AUTH_KEY)
+    random_numbers_train = np.random.randint(0, 6961241, int(500000)) # can be set as a parameter if K-Fold is used
+    random_numbers_val = np.random.randint(0, 6965880, int(50000)) # can be set as a parameter if K-Fold is used
+    dset["train"] = dset["train"].select(random_numbers_train)
+    dset["val"] = dset["val"].select(random_numbers_val)
     print(dset)
 
     CPU_COUNT = multiprocessing.cpu_count() // 2
