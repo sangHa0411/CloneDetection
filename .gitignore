@@ -8,3 +8,5 @@ exps
 results
 .vscode
 checkpoints
+notebooks
+logs
