@@ -8,7 +8,7 @@ import multiprocessing
 from dotenv import load_dotenv
 from datasets import load_dataset
 from utils.metric import compute_metrics
-from utils.encoder import Encoder
+from utils.encoder import Encoder, BartEncoder, T5Encoder
 from utils.collator import DataCollatorWithPadding
 from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor, BasePreprocessor
 from trainer import ImprovedRDropTrainer
@@ -75,9 +75,15 @@ def main():
             dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
         # -- Tokenizing & Encoding
         MODEL_CATEGORY = training_args.model_category
-
         tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-        encoder = Encoder(
+        if "bert" in MODEL_NAME.lower():
+            dataset_encoder_class = Encoder
+        elif "t5" in MODEL_NAME.lower():
+            dataset_encoder_class = T5Encoder
+        elif "bart" in MODEL_NAME.lower():
+            dataset_encoder_class = BartEncoder
+
+        encoder = dataset_encoder_class(
             tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length
         )
         dset = dset.map(
