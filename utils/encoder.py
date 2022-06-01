@@ -25,13 +25,15 @@ def add_entity_mask(
 
 
 def PLBART_preprocessing_function(examples, tokenizer, max_input_length):
+    python_token = tokenizer(
+        "python", max_length=1, add_special_tokens=False, truncation=True
+    ).input_ids
     batch_size = len(examples["code1"])
 
     list_input_ids = []
     list_attention_mask = []
     list_hypothesis_mask = []
     list_premise_mask = []
-    list_labels = []
     list_last_token_index = []
 
     for i in range(batch_size):
@@ -52,10 +54,12 @@ def PLBART_preprocessing_function(examples, tokenizer, max_input_length):
         code2_input_ids = tokenizer(
             code2, max_length=max_input_length, add_special_tokens=False, truncation=True
         ).input_ids
-        len_input_ids = len(code1_input_ids) + len(code2_input_ids) + 2 + 1  # python </s></s> </s>
+        len_input_ids = (
+            len(code1_input_ids) + len(code2_input_ids) + 2 + 2 + 1
+        )  # python </s></s> python </s>
 
         # normalize length for overflowing codes by truncation
-        code_max_length = max_input_length - 3
+        code_max_length = max_input_length - 5
         if len_input_ids >= max_input_length:
             # get tokenized length of each codes
             code1_length_bart, code2_length_bart = (
@@ -86,33 +90,42 @@ def PLBART_preprocessing_function(examples, tokenizer, max_input_length):
 
         # construct input sequence
         input_ids = (
-            code1_input_ids + [tokenizer.sep_token_id] + [tokenizer.sep_token_id] + code2_input_ids
+            code1_input_ids
+            + python_token
+            + [tokenizer.sep_token_id]
+            + [tokenizer.sep_token_id]
+            + code2_input_ids
+            + python_token
         )
 
         # exception handling when constructed sequence overflows
         if len(input_ids) >= max_input_length:
             input_ids = input_ids[:max_input_length]
+            input_ids[-2] = python_token[0]
             input_ids[-1] = tokenizer.sep_token_id
         elif len(input_ids) < max_input_length:
             input_ids += [tokenizer.sep_token_id]
 
         # input token indexing for Improved Baseline format
         first_token_start_index = 0
-        first_sep_token_index = first_token_start_index + len(code1_input_ids)
+        first_python_index = first_token_start_index + len(code1_input_ids)
+        first_sep_token_index = first_python_index + 1
         second_sep_token_index = first_sep_token_index + 1
         begin_second_code = second_sep_token_index + 1
+        second_python_index = begin_second_code + len(code2_input_ids)
 
         if len(input_ids) >= max_input_length:
             third_sep_token_index = max_input_length - 1
+            second_python_index = third_sep_token_index - 1
         else:
-            third_sep_token_index = begin_second_code + len(code2_input_ids)
+            third_sep_token_index = second_python_index + 1
 
         premise_mask, hypothesis_mask = add_entity_mask(
             len(input_ids),
             first_token_start_index,
-            first_sep_token_index - 1,
+            first_python_index,
             begin_second_code,
-            third_sep_token_index - 1,
+            second_python_index,
         )
 
         padding = [0] * max(0, max_input_length - len(input_ids))
@@ -154,7 +167,6 @@ def t5_preprocessing_function_ib(examples, tokenizer, max_input_length):
     list_attention_mask = []
     list_hypothesis_mask = []
     list_premise_mask = []
-    list_labels = []
     list_last_token_index = []
 
     for i in range(batch_size):

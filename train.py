@@ -38,7 +38,7 @@ def main():
     # dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
     # dset = load_dataset("PoolC/clone-det-all", use_auth_token=True)
     for fold_index in range(0, 5):
-        dataset_name = f"snoop2head/{fold_index+1}-fold-clone-detection-600k-5fold"
+        dataset_name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
         dset = load_dataset(dataset_name, use_auth_token=True)
         random_numbers_train = np.random.randint(
             0, len(dset["train"]), int(179000 * 5)
@@ -124,7 +124,7 @@ def main():
             name += f"LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
             name += MODEL_NAME
             name += f"{fold_index+1}_fold"
-            num_train = str(random_numbers_train)[:-4] + "k"
+            num_train = str(len(random_numbers_train))[:-4] + "k"
             name += f"_{num_train}"
             training_args.output_dir = os.path.join(output_dir, f"{fold_index+1}_fold")
 

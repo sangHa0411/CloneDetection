@@ -6,11 +6,11 @@ python train.py \
 --model_category codebert \
 --model_name RobertaRBERT \
 --logging_strategy steps \
---logging_steps 1000 \
+--logging_steps 100 \
 --evaluation_strategy steps \
 --save_strategy steps \
---eval_steps 1000 \
---save_steps 1000 \
+--eval_steps 100 \
+--save_steps 100 \
 --overwrite_output_dir \
 --save_total_limit 10 \
 --output_dir ./exps \
