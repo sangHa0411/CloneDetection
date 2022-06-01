@@ -9,7 +9,7 @@ from transformers.utils import logging
 logger = logging.get_logger(__name__)
 
 
-class Trainer(Trainer):
+class ImprovedRDropTrainer(Trainer):
     def get_kl_loss(self, loss_fn, logits_1, logits_2, alpha=1):
         loss_kl_1 = loss_fn(F.log_softmax(logits_1, dim=-1), F.softmax(logits_2, dim=-1))
         loss_kl_2 = loss_fn(F.log_softmax(logits_2, dim=-1), F.softmax(logits_1, dim=-1))

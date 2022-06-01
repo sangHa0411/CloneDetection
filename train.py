@@ -10,11 +10,12 @@ from datasets import load_dataset
 from utils.metric import compute_metrics
 from utils.encoder import Encoder
 from utils.collator import DataCollatorWithPadding
-from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor
-from trainer import Trainer
+from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor, BasePreprocessor
+from trainer import ImprovedRDropTrainer
 from arguments import ModelArguments, DataTrainingArguments, MyTrainingArguments, LoggingArguments
 
 from transformers import (
+    Trainer,
     AutoConfig,
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -46,7 +47,7 @@ def main():
     print(dset)
 
     CPU_COUNT = multiprocessing.cpu_count() // 2
-
+    MODEL_NAME = training_args.model_name
     MAX_LENGTH = 4000
 
     def filter_fn(data):
@@ -59,12 +60,15 @@ def main():
     print(dset)
 
     # -- Preprocessing datasets
-    fn_preprocessor = FunctionPreprocessor()
-    dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
+    if "bert" in MODEL_NAME.lower():
+        fn_preprocessor = FunctionPreprocessor()
+        dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
 
-    an_preprocessor = AnnotationPreprocessor()
-    dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
-
+        an_preprocessor = AnnotationPreprocessor()
+        dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
+    elif "t5" in MODEL_NAME.lower() or "bart" in MODEL_NAME.lower():
+        preprocessor = BasePreprocessor()
+        dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
     # -- Tokenizing & Encoding
     MODEL_CATEGORY = training_args.model_category
 
@@ -83,7 +87,6 @@ def main():
     config.tokenizer_cls_token_id = tokenizer.cls_token_id
     config.tokenizer_sep_token_id = tokenizer.sep_token_id
 
-    MODEL_NAME = training_args.model_name
     if MODEL_NAME == "base":
         model_class = AutoModelForSequenceClassification
     else:
@@ -113,16 +116,28 @@ def main():
             entity="poolc", project=logging_args.project_name, group=model_args.PLM, name=name
         )
         wandb.config.update(training_args)
-
-        trainer = Trainer(  # the instantiated 🤗 Transformers model to be trained
-            model=model,  # model
-            args=training_args,  # training arguments, defined above
-            train_dataset=dset["train"],  # training dataset
-            eval_dataset=dset["val"],  # evaluation dataset
-            data_collator=data_collator,  # collator
-            tokenizer=tokenizer,  # tokenizer
-            compute_metrics=compute_metrics,  # define metrics function
-        )
+        if "bert" in MODEL_NAME.lower():
+            print("using RDrop applied trainer")
+            trainer = ImprovedRDropTrainer(  # the instantiated 🤗 Transformers model to be trained
+                model=model,  # model
+                args=training_args,  # training arguments, defined above
+                train_dataset=dset["train"],  # training dataset
+                eval_dataset=dset["val"],  # evaluation dataset
+                data_collator=data_collator,  # collator
+                tokenizer=tokenizer,  # tokenizer
+                compute_metrics=compute_metrics,  # define metrics function
+            )
+        elif "t5" in MODEL_NAME.lower() or "bart" in MODEL_NAME.lower():
+            print("using huggingface trainer")
+            trainer = Trainer(  # the instantiated 🤗 Transformers model to be trained
+                model=model,  # model
+                args=training_args,  # training arguments, defined above
+                train_dataset=dset["train"],  # training dataset
+                eval_dataset=dset["val"],  # evaluation dataset
+                data_collator=data_collator,  # collator
+                tokenizer=tokenizer,  # tokenizer
+                compute_metrics=compute_metrics,  # define metrics function
+            )
 
         # -- Training
         trainer.train()
