@@ -6,11 +6,11 @@ python train.py \
 --model_category codebert \
 --model_name RobertaRBERT \
 --logging_strategy steps \
---logging_steps 100 \
+--logging_steps 1000 \
 --evaluation_strategy steps \
 --save_strategy steps \
---eval_steps 100 \
---save_steps 100 \
+--eval_steps 2000 \
+--save_steps 2000 \
 --overwrite_output_dir \
 --save_total_limit 10 \
 --output_dir ./exps \
@@ -30,7 +30,7 @@ python inference.py \
 --model_category codebert \
 --model_name RobertaRBERT \
 --output_dir results \
---file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5.csv \
---PLM  /home/ubuntu/CodeSimilarity/exps/checkpoint-12000 \
+--file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold1.csv \
+--PLM  /home/ubuntu/CodeSimilarity/exps/1_fold/checkpoint-16000 \
 --fp16 \
 --per_device_eval_batch_size 32

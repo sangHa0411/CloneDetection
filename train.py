@@ -123,8 +123,8 @@ def main():
 
             name += f"LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
             name += MODEL_NAME
-            name += f"{fold_index+1}_fold"
-            num_train = str(len(random_numbers_train))[:-4] + "k"
+            name += f"_{fold_index+1}_fold"
+            num_train = str(len(random_numbers_train))[:-3] + "k"
             name += f"_{num_train}"
             training_args.output_dir = os.path.join(output_dir, f"{fold_index+1}_fold")
 
