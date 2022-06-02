@@ -295,7 +295,7 @@ class RobertaVsatckRBERT(RobertaPreTrainedModel):
         cls_flag = input_ids == self.config.tokenizer_cls_token_id  # cls token
         sep_flag = input_ids == self.config.tokenizer_sep_token_id  # sep token
 
-        special_hidden_states = torch.cat([hidden_states[cls_flag + sep_flag].view(batch_size, -1, hidden_size) for i in for i in [-4, -3, -2, -1]]], dim=-1)
+        special_hidden_states = torch.cat([outputs['hidden_states'][i][cls_flag + sep_flag].view(batch_size, -1, hidden_size) for i in [-4, -3, -2, -1]], dim=-1)
         special_token_states = hidden_states[cls_flag + sep_flag].view(batch_size, -1, hidden_size)
         special_hidden_states = self.net(special_token_states)
 
