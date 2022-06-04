@@ -9,10 +9,26 @@ from transformers import (
     PLBartPreTrainedModel,
     PLBartModel,
 )
+from utils.heads import (
+    BartEncoderClassificationHead,
+    PLBartClassificationHead,
+    AdaptivePooler,
+    MeanPooler,
+    FCLayer,
+)
+
+
+# https://github.com/monologg/R-BERT/blob/master/model.py
+# https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
+import torch
+from torch import nn
+from transformers import AutoConfig, AutoModel
+from transformers import PLBartConfig, PLBartPreTrainedModel, PLBartModel
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 
 class FCLayer(nn.Module):
-    """R-BERT: https://github.com/monologg/R-BERT"""
+    """ R-BERT: https://github.com/monologg/R-BERT """
 
     # both attention dropout and fc dropout is 0.1 on Roberta: https://arxiv.org/pdf/1907.11692.pdf
     def __init__(self, input_dim, output_dim, dropout_rate=0.1, use_activation=True):
@@ -20,9 +36,7 @@ class FCLayer(nn.Module):
         self.use_activation = use_activation
         self.dropout = nn.Dropout(dropout_rate)
         self.linear = nn.Linear(input_dim, output_dim)
-        self.activation = (
-            nn.GELU()
-        )  # roberta and electra both uses gelu whereas BERT used tanh
+        self.activation = nn.GELU()  # roberta and electra both uses gelu whereas BERT used tanh
 
     def forward(self, x):
         x = self.dropout(x)
@@ -31,102 +45,9 @@ class FCLayer(nn.Module):
         return self.linear(x)
 
 
-class BartEncoderClassificationHead(nn.Module):
-    """Head for sentence-level classification tasks."""
-
-    def __init__(self, config):
-        super().__init__()
-        self.dense = nn.Linear(config.hidden_size * 2, config.hidden_size)
-        self.out_proj = nn.Linear(config.hidden_size, 2)
-        self.dropout = nn.Dropout(config.dropout_rate)
-        self.activation = nn.GELU()
-
-    def forward(self, x, **kwargs):
-        x = self.dense(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
-
-
-class PLBartClassificationHead(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        inner_dim: int,
-        num_classes: int,
-        pooler_dropout: float,
-    ):
-        super().__init__()
-        self.dense = nn.Linear(input_dim, inner_dim)
-        self.dropout = nn.Dropout(p=pooler_dropout)
-        self.out_proj = nn.Linear(inner_dim, num_classes)
-
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dropout(hidden_states[:, 0, :])
-        hidden_states = self.dense(hidden_states)
-        hidden_states = torch.tanh(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.out_proj(hidden_states)
-        return hidden_states
-
-
-# BartForSequenceclassification: https://github.com/huggingface/transformers/blob/a59eb349c5616c1b48ae9225028fb41ec1feb6aa/src/transformers/models/bart/modeling_bart.py#L1437
-# https://github.com/wzhouad/RE_improved_baseline/blob/main/model.py
-# https://github.com/huggingface/transformers/blob/4975002df50c472cbb6f8ac3580e475f570606ab/src/transformers/models/plbart/modeling_plbart.py#L1110-L1219
-# https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
-class BartEncoderConcatModel(
-    PLBartPreTrainedModel
-):  # PLBartModel하고 self.encoder해도 될 듯?
-    def __init__(self, config, tokenizer):
-        super().__init__(config, tokenizer)
-        self.config = config
-        self.bart_model = PLBartModel.from_pretrained(
-            config.model_name_or_path, config=config
-        )
-        self.encoder = self.bart_model.encoder
-        self.tokenizer = tokenizer
-        self.classifier = BartEncoderClassificationHead(config)
-
-    def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        first_token_index=None,
-        second_token_index=None,
-        labels=None,
-    ):
-
-        outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=False,
-        )
-
-        last_hidden_state = outputs[
-            "last_hidden_state"
-        ]  # or outputs["hidden_state"][-1]
-        idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device)
-        first_token_vec = last_hidden_state[idx_seq, first_token_index]
-        second_token_vec = last_hidden_state[idx_seq, second_token_index]
-        concat_vec = torch.cat([first_token_vec, second_token_vec], dim=-1)
-
-        logits = self.classifier(concat_vec)
-        prob = nn.functional.softmax(logits)
-
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            # print(logits)
-            # print(labels)
-            labels = labels.squeeze(-1)
-            loss = loss_fct(logits, labels)
-            return loss, prob
-        else:
-            return prob
-
 # https://github.com/monologg/R-BERT/blob/master/model.py
 # https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
-class RBartConcatModel(PLBartModel):
+class VHBartEncoderForSequenceClassification(PLBartModel):
     def __init__(self, config):
         super().__init__(config)
         self.config = config
@@ -134,7 +55,9 @@ class RBartConcatModel(PLBartModel):
         self.entity_fc_layer = FCLayer(
             self.config.hidden_size, self.config.hidden_size, self.config.dropout_rate
         )
-        # self.proj_fc_layer = FCLayer(self.config.hidden_size * 4, self.config.hidden_size, self.config.dropout_rate)
+        self.proj_fc_layer = FCLayer(
+            self.config.hidden_size * 4, self.config.hidden_size, self.config.dropout_rate
+        )
         self.label_classifier = FCLayer(
             self.config.hidden_size * 3,
             self.config.num_labels,
@@ -143,33 +66,30 @@ class RBartConcatModel(PLBartModel):
         )
 
     def forward(
-        self,
-        input_ids,
-        attention_mask,
-        hypothesis_mask,
-        premise_mask,
-        last_token_index,
-        labels,
+        self, input_ids, attention_mask, hypothesis_mask, premise_mask, last_token_index, labels,
     ):
 
         outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=False,
+            input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True,
         )
 
         # Global token's 4 hidden states concatenation and  projection result
-        # idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device)
+        idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device)
         # print(idx_seq)
-        # cls_concat = torch.cat(tuple([outputs["hidden_states"][i][:, last_token_index, :] for i in [-4, -3, -2, -1]]), dim=-1)
-        # cls_output = self.proj_fc_layer(cls_concat).squeeze(0)
+        cls_concat = torch.cat(
+            tuple(
+                [outputs["hidden_states"][i][idx_seq, last_token_index] for i in [-4, -3, -2, -1]]
+            ),
+            dim=-1,
+        )
+        cls_output = self.proj_fc_layer(cls_concat)
         # cls_output = outputs["last_hidden_state"][:, last_token_index, :]
         # print(cls_output)
 
         # Global average on sentences
         sequence_output = outputs["last_hidden_state"]
-        sentence_h = self.entity_average(sequence_output, attention_mask)
-        sentence_h = self.entity_fc_layer(sentence_h)
+        # sentence_h = self.entity_average(sequence_output, attention_mask)
+        # sentence_h = self.entity_fc_layer(sentence_h)
         # print(sentence_h)
 
         premise_sentence_h = self.entity_average(
@@ -193,9 +113,10 @@ class RBartConcatModel(PLBartModel):
         concat = torch.cat(
             [
                 # cls_output,
-                sentence_h,
+                # sentence_h,
                 premise_sentence_h,
                 hypothesis_sentence_h,
+                cls_output,
             ],
             dim=-1,
         )
@@ -230,31 +151,80 @@ class RBartConcatModel(PLBartModel):
         avg_vector = sum_vector.float() / length_tensor.float()  # broadcasting
         return avg_vector
 
+
+########################################################################################################################
+
+
+# BartForSequenceclassification: https://github.com/huggingface/transformers/blob/a59eb349c5616c1b48ae9225028fb41ec1feb6aa/src/transformers/models/bart/modeling_bart.py#L1437
+# https://github.com/wzhouad/RE_improved_baseline/blob/main/model.py
+# https://github.com/huggingface/transformers/blob/4975002df50c472cbb6f8ac3580e475f570606ab/src/transformers/models/plbart/modeling_plbart.py#L1110-L1219
+# https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
+class BartEncoderConcatModel(PLBartPreTrainedModel):  # PLBartModel하고 self.encoder해도 될 듯?
+    def __init__(self, config, tokenizer):
+        super().__init__(config, tokenizer)
+        self.config = config
+        self.bart_model = PLBartModel.from_pretrained(config.model_name_or_path, config=config)
+        self.encoder = self.bart_model.encoder
+        self.tokenizer = tokenizer
+        self.classifier = BartEncoderClassificationHead(config)
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        first_token_index=None,
+        second_token_index=None,
+        labels=None,
+    ):
+
+        outputs = self.encoder(
+            input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=False,
+        )
+
+        last_hidden_state = outputs["last_hidden_state"]  # or outputs["hidden_state"][-1]
+        idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device)
+        first_token_vec = last_hidden_state[idx_seq, first_token_index]
+        second_token_vec = last_hidden_state[idx_seq, second_token_index]
+        concat_vec = torch.cat([first_token_vec, second_token_vec], dim=-1)
+
+        logits = self.classifier(concat_vec)
+        prob = nn.functional.softmax(logits)
+
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            # print(logits)
+            # print(labels)
+            labels = labels.squeeze(-1)
+            loss = loss_fct(logits, labels)
+            return loss, prob
+        else:
+            return prob
+
+
 # https://github.com/monologg/R-BERT/blob/master/model.py
 # https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
 class RBartVStackModel(PLBartModel):
-
     def __init__(self, config):
         super().__init__(config)
         self.config = config
 
         self.token_fc_layer = FCLayer(
-            self.config.hidden_size* 4, 
-            self.config.hidden_size, 
+            self.config.hidden_size * 4,
+            self.config.hidden_size,
             self.config.dropout_rate,
             use_activation=True,
         )
 
         self.entity_fc_layer = FCLayer(
-            self.config.hidden_size* 4, 
-            self.config.hidden_size, 
+            self.config.hidden_size * 4,
+            self.config.hidden_size,
             self.config.dropout_rate,
             use_activation=True,
         )
 
         self.projection = FCLayer(
-            self.config.hidden_size* 4, 
-            self.config.hidden_size, 
+            self.config.hidden_size * 4,
+            self.config.hidden_size,
             self.config.dropout_rate,
             use_activation=True,
         )
@@ -267,65 +237,89 @@ class RBartVStackModel(PLBartModel):
         )
 
     def forward(
-        self, 
-        input_ids, 
+        self,
+        input_ids,
         attention_mask,
         hypothesis_mask,
-        premise_mask, 
+        premise_mask,
         last_token_index,
-        labels=None
-        ):
-        
+        labels=None,
+    ):
+
         outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=True,
+            input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True,
         )
-        
-        
+
         # extract embedding for special tokens for each premise and hypothesis
-        idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device) 
+        idx_seq = torch.arange(input_ids.size(0)).to(input_ids.device)
 
         # Global token's 4 hidden states concatenation and  projection result
-        cls_concat = torch.cat(tuple([outputs["hidden_states"][i][idx_seq, last_token_index] for i in [-4, -3, -2, -1]]), dim=-1)
+        cls_concat = torch.cat(
+            tuple(
+                [outputs["hidden_states"][i][idx_seq, last_token_index] for i in [-4, -3, -2, -1]]
+            ),
+            dim=-1,
+        )
         cls_output = self.token_fc_layer(cls_concat)
         # print(cls_output)
 
         # Global average on sentences
         # sequence_output = outputs["last_hidden_state"]
         # sentence_h = self.entity_average(sequence_output, attention_mask)
-        sentence_h = torch.cat(tuple([self.entity_average(outputs["hidden_states"][i],attention_mask) for i in [-4, -3, -2, -1]]), dim=-1)
+        sentence_h = torch.cat(
+            tuple(
+                [
+                    self.entity_average(outputs["hidden_states"][i], attention_mask)
+                    for i in [-4, -3, -2, -1]
+                ]
+            ),
+            dim=-1,
+        )
         sentence_h = self.entity_fc_layer(sentence_h)
         # print(sentence_h)
-        
-        # premise_sentence_h = self.entity_average(sequence_output, premise_mask) # token in between subject entities -> 
-        premise_sentence_h = torch.cat(tuple([self.entity_average(outputs["hidden_states"][i], premise_mask) for i in [-4, -3, -2, -1]]), dim=-1)
-        premise_sentence_h = self.entity_fc_layer(premise_sentence_h) # subject entity's fully connected layer | yellow on diagram
+
+        # premise_sentence_h = self.entity_average(sequence_output, premise_mask) # token in between subject entities ->
+        premise_sentence_h = torch.cat(
+            tuple(
+                [
+                    self.entity_average(outputs["hidden_states"][i], premise_mask)
+                    for i in [-4, -3, -2, -1]
+                ]
+            ),
+            dim=-1,
+        )
+        premise_sentence_h = self.entity_fc_layer(
+            premise_sentence_h
+        )  # subject entity's fully connected layer | yellow on diagram
         # print(premise_sentence_h)
-        
+
         # Average on hypothesis sentence
-        hypothesis_sentence_h = torch.cat(tuple([self.entity_average(outputs["hidden_states"][i], hypothesis_mask) for i in [-4, -3, -2, -1]]), dim=-1)
-        hypothesis_sentence_h = self.entity_fc_layer(hypothesis_sentence_h) # object entity's fully connected layer | red on diagram
+        hypothesis_sentence_h = torch.cat(
+            tuple(
+                [
+                    self.entity_average(outputs["hidden_states"][i], hypothesis_mask)
+                    for i in [-4, -3, -2, -1]
+                ]
+            ),
+            dim=-1,
+        )
+        hypothesis_sentence_h = self.entity_fc_layer(
+            hypothesis_sentence_h
+        )  # object entity's fully connected layer | red on diagram
         # print(hypothesis_sentence_h)
-        
+
         # Concat: global token, global average, premise token, premise average, hypothesis token, hypothesis average
         # print(cls_output.size(), sentence_h.size(), premise_sentence_h.size(), hypothesis_sentence_h.size())
         concat = torch.cat(
-            [
-                cls_output,
-                sentence_h, 
-                premise_sentence_h, 
-                hypothesis_sentence_h
-            ], dim=-1
+            [cls_output, sentence_h, premise_sentence_h, hypothesis_sentence_h], dim=-1
         )
-        
-        
+
         # 4 to 1 projection
         concat = self.projection(concat)
 
         # yield logit from label classifier
         logits = self.label_classifier(concat)
-        
+
         loss = None
         outputs.hidden_states = None
         if labels is not None:
