@@ -5,7 +5,7 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.models.t5.modeling_t5 import T5EncoderModel, T5Config, T5PreTrainedModel, T5Stack
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
-from ..utils.heads import (
+from utils.heads import (
     AdaptivePooler,
     MeanPooler,
     FCLayer,
@@ -13,7 +13,7 @@ from ..utils.heads import (
 
 
 # https://github.com/monologg/EncT5/blob/master/enc_t5/modeling_enc_t5.py
-class IBPoolerForSequenceClassification(T5PreTrainedModel):
+class VHT5EncoderForSequenceClassification(T5PreTrainedModel):
     """ 
     Using [CLS token hidden states, Input Sequence Weighted Average, SEP token hidden states] for classification
     """

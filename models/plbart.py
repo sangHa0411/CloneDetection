@@ -9,7 +9,7 @@ from transformers import (
     PLBartPreTrainedModel,
     PLBartModel,
 )
-from ..utils.heads import (
+from utils.heads import (
     BartEncoderClassificationHead,
     PLBartClassificationHead,
     AdaptivePooler,
@@ -47,7 +47,7 @@ class FCLayer(nn.Module):
 
 # https://github.com/monologg/R-BERT/blob/master/model.py
 # https://dacon.io/competitions/official/235875/codeshare/4589?page=1&dtype=recent
-class RBartConcatModel(PLBartModel):
+class VHBartEncoderForSequenceClassification(PLBartModel):
     def __init__(self, config):
         super().__init__(config)
         self.config = config

@@ -35,8 +35,6 @@ def main():
     POOLC_AUTH_KEY = os.getenv("POOLC_AUTH_KEY")
 
     # -- Loading datasets
-    # dset = load_dataset("PoolC/clone-det-base", use_auth_token=POOLC_AUTH_KEY)
-    # dset = load_dataset("PoolC/clone-det-all", use_auth_token=True)
     for fold_index in range(0, 5):
         dataset_name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
         dset = load_dataset(dataset_name, use_auth_token=True)
@@ -52,6 +50,7 @@ def main():
 
         CPU_COUNT = multiprocessing.cpu_count() // 2
         MODEL_NAME = training_args.model_name
+        PLM_NAME = model_args.PLM
         MAX_LENGTH = 4000
 
         def filter_fn(data):
@@ -64,24 +63,28 @@ def main():
         print(dset)
 
         # -- Preprocessing datasets
-        if "bert" in MODEL_NAME.lower():
+        if "bert" in PLM_NAME.lower():
             fn_preprocessor = FunctionPreprocessor()
             dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
 
             an_preprocessor = AnnotationPreprocessor()
             dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
-        elif "t5" in MODEL_NAME.lower() or "bart" in MODEL_NAME.lower():
+        elif "t5" in PLM_NAME.lower() or "bart" in PLM_NAME.lower():
             preprocessor = BasePreprocessor()
             dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
         # -- Tokenizing & Encoding
         MODEL_CATEGORY = training_args.model_category
         tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-        if "bert" in MODEL_NAME.lower():
+
+        if "bert" in PLM_NAME.lower():
             dataset_encoder_class = Encoder
-        elif "t5" in MODEL_NAME.lower():
+            print("Using BertEncoder")
+        elif "t5" in PLM_NAME.lower():
             dataset_encoder_class = T5Encoder
+            print("T5Encoder")
         elif "bart" in MODEL_NAME.lower():
             dataset_encoder_class = BartEncoder
+            print("BartEncoder")
 
         encoder = dataset_encoder_class(
             tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length
