@@ -5,13 +5,14 @@ import pandas as pd
 import multiprocessing
 from datasets import Dataset
 from trainer import Trainer, ImprovedRDropTrainer
-from utils.encoder import Encoder
+from utils.encoder import Encoder, BartEncoder, T5Encoder
 from utils.collator import DataCollatorWithPadding
-from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor
-
+from utils.preprocessor import AnnotationPreprocessor, FunctionPreprocessor, BasePreprocessor
+from trainer import ImprovedRDropTrainer
 from arguments import ModelArguments, DataTrainingArguments, MyTrainingArguments, InferenceArguments
 
 from transformers import (
+    Trainer,
     AutoConfig,
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -32,19 +33,34 @@ def main():
     print(dset)
 
     CPU_COUNT = multiprocessing.cpu_count() // 2
+    MODEL_NAME = training_args.model_name
+    PLM_NAME = model_args.PLM
 
     # -- Preprocessing datasets
-    fn_preprocessor = FunctionPreprocessor()
-    dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
+    if "bert" in PLM_NAME.lower():
+        fn_preprocessor = FunctionPreprocessor()
+        dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
 
-    an_preprocessor = AnnotationPreprocessor()
-    dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
-
+        an_preprocessor = AnnotationPreprocessor()
+        dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
+    elif "t5" in PLM_NAME.lower() or "bart" in PLM_NAME.lower():
+        preprocessor = BasePreprocessor()
+        dset = dset.map(preprocessor, batched=True, num_proc=CPU_COUNT)
     # -- Tokenizing & Encoding
     MODEL_CATEGORY = training_args.model_category
-
     tokenizer = AutoTokenizer.from_pretrained(model_args.PLM)
-    encoder = Encoder(
+
+    if "bert" in PLM_NAME.lower():
+        dataset_encoder_class = Encoder
+        print("Using BertEncoder")
+    elif "t5" in PLM_NAME.lower():
+        dataset_encoder_class = T5Encoder
+        print("T5Encoder")
+    elif "bart" in MODEL_NAME.lower():
+        dataset_encoder_class = BartEncoder
+        print("BartEncoder")
+
+    encoder = dataset_encoder_class(
         tokenizer, model_category=MODEL_CATEGORY, max_input_length=data_args.max_length
     )
     dset = dset.map(
@@ -72,8 +88,13 @@ def main():
     config = AutoConfig.from_pretrained(model_args.PLM)
     model = model_class.from_pretrained(model_args.PLM, config=config)
     training_args.remove_unused_columns = False
-
-    trainer = ImprovedRDropTrainer(  # the instantiated 🤗 Transformers model to be trained
+    if "bert" in MODEL_NAME.lower():
+        print("using RDrop applied trainer")
+        trainer_class = ImprovedRDropTrainer
+    elif "t5" in MODEL_NAME.lower() or "bart" in MODEL_NAME.lower():
+        print("using huggingface trainer")
+        trainer_class = Trainer
+    trainer = trainer_class(  # the instantiated 🤗 Transformers model to be trained
         model=model,  # trained model
         args=training_args,  # training arguments, defined above
         data_collator=data_collator,  # collator
