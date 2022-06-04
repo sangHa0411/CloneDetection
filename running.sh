@@ -25,12 +25,52 @@ python train.py \
 --warmup_ratio 0.05 \
 --weight_decay 1e-2
 
-# inference command example
+### Fold 1
 python inference.py \
 --model_category codebert \
 --model_name RobertaRBERT \
 --output_dir results \
 --file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold1.csv \
 --PLM  /home/ubuntu/CodeSimilarity/exps/1_fold/checkpoint-16000 \
+--fp16 \
+--per_device_eval_batch_size 32
+
+### Fold 2
+python inference.py \
+--model_category codebert \
+--model_name RobertaRBERT \
+--output_dir results \
+--file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold2.csv \
+--PLM  /home/ubuntu/CodeSimilarity/exps/2_fold/checkpoint-10000 \
+--fp16 \
+--per_device_eval_batch_size 32
+
+### Fold 3
+python inference.py \
+--model_category codebert \
+--model_name RobertaRBERT \
+--output_dir results \
+--file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold3.csv \
+--PLM  /home/ubuntu/CodeSimilarity/exps/3_fold/checkpoint-16000 \
+--fp16 \
+--per_device_eval_batch_size 32
+
+### Fold 4
+python inference.py \
+--model_category codebert \
+--model_name RobertaRBERT \
+--output_dir results \
+--file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold4.csv \
+--PLM  /home/ubuntu/CodeSimilarity/exps/4_fold/checkpoint-12000 \
+--fp16 \
+--per_device_eval_batch_size 32
+
+### Fold 5
+python inference.py \
+--model_category codebert \
+--model_name RobertaRBERT \
+--output_dir results \
+--file_name graphcodebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5_fold5.csv \
+--PLM  /home/ubuntu/CodeSimilarity/exps/5_fold/checkpoint-8000 \
 --fp16 \
 --per_device_eval_batch_size 32
