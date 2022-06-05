@@ -4,11 +4,11 @@ python train.py \
 --model_category t5 \
 --model_name VHT5EncoderForSequenceClassification \
 --logging_strategy steps \
---logging_steps 1000 \
+--logging_steps 1500 \
 --evaluation_strategy steps \
 --save_strategy steps \
---eval_steps 1000 \
---save_steps 1000 \
+--eval_steps 1500 \
+--save_steps 1500 \
 --overwrite_output_dir \
 --save_total_limit 10 \
 --output_dir ./exps \
