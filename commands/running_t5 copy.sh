@@ -1,5 +1,6 @@
 python train.py \
 --do_train \
+--fp16 \
 --PLM Salesforce/codet5-base \
 --model_category t5 \
 --model_name VHT5EncoderForSequenceClassification \
