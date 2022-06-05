@@ -86,6 +86,7 @@ def main():
     # -- Inference
     # -- Config & Model
     config = AutoConfig.from_pretrained(model_args.PLM)
+    config.dropout_rate = 0.1
     model = model_class.from_pretrained(model_args.PLM, config=config)
     training_args.remove_unused_columns = False
     if "bert" in MODEL_NAME.lower():

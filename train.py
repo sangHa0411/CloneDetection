@@ -99,6 +99,7 @@ def main():
         config.num_labels = 2
         config.tokenizer_cls_token_id = tokenizer.cls_token_id
         config.tokenizer_sep_token_id = tokenizer.sep_token_id
+        config.dropout_rate = 0.1
 
         if MODEL_NAME == "base":
             model_class = AutoModelForSequenceClassification
@@ -129,7 +130,7 @@ def main():
             name += f"_{fold_index+1}_fold"
             num_train = str(len(random_numbers_train))[:-3] + "k"
             name += f"_{num_train}"
-            training_args.output_dir = os.path.join(output_dir, f"{fold_index+1}_fold")
+            training_args.output_dir = os.path.join(output_dir, f"{fold_index+1}_fold_{MODEL_NAME}")
 
             wandb.init(
                 entity="poolc", project=logging_args.project_name, group=model_args.PLM, name=name
