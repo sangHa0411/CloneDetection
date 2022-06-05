@@ -19,5 +19,5 @@ python train.py \
 --per_device_eval_batch_size 48 \
 --gradient_accumulation_steps 1 \
 --metric_for_best_model accuracy \
---warmup_ratio 0.10 \
+--warmup_ratio 0.05 \
 --weight_decay 1e-2
