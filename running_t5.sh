@@ -10,7 +10,7 @@ python train.py \
 --eval_steps 1500 \
 --save_steps 1500 \
 --overwrite_output_dir \
---save_total_limit 10 \
+--save_total_limit 15 \
 --output_dir ./exps \
 --logging_dir ./logs \
 --num_train_epochs 2 \
