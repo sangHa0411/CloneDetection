@@ -66,7 +66,7 @@ class VHBartEncoderForSequenceClassification(PLBartModel):
         )
 
     def forward(
-        self, input_ids, attention_mask, hypothesis_mask, premise_mask, last_token_index, labels,
+        self, input_ids, attention_mask, hypothesis_mask, premise_mask, last_token_index, labels=None,
     ):
 
         outputs = self.encoder(
