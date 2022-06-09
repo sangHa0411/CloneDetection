@@ -4,11 +4,11 @@ python train.py \
 --model_category plbart \
 --model_name VHBartEncoderForSequenceClassification \
 --logging_strategy steps \
---logging_steps 1500 \
+--logging_steps 2000 \
 --evaluation_strategy steps \
 --save_strategy steps \
---eval_steps 1500 \
---save_steps 1500 \
+--eval_steps 2000 \
+--save_steps 2000 \
 --overwrite_output_dir \
 --save_total_limit 10 \
 --output_dir ./exps \
@@ -18,6 +18,5 @@ python train.py \
 --per_device_train_batch_size 32 \
 --per_device_eval_batch_size 32 \
 --gradient_accumulation_steps 1 \
---metric_for_best_model accuracy \
---warmup_ratio 0.05 \
+--warmup_ratio 0.00 \
 --weight_decay 0.0
