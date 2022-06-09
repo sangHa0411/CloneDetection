@@ -2,6 +2,7 @@
 python train.py \
 --do_train \
 --fp16 \
+--do_all \
 --PLM microsoft/codebert-base \
 --model_category codebert \
 --model_name RobertaRBERT \
@@ -26,11 +27,11 @@ python train.py \
 --weight_decay 1e-2
 
 # inference command example
-python inference.py \
---model_category codebert \
---model_name RobertaRBERT \
---output_dir results \
---file_name codebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5.csv \
---PLM checkpoints \
---fp16 \
---per_device_eval_batch_size 32
+# python inference.py \
+# --model_category codebert \
+# --model_name RobertaRBERT \
+# --output_dir results \
+# --file_name codebert_rbert_EP:2_BS:32_WR:0.05_WD:1e-2_LR:2e-5.csv \
+# --PLM checkpoints \
+# --fp16 \
+# --per_device_eval_batch_size 32
