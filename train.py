@@ -36,16 +36,28 @@ def main():
 
     # -- Loading datasets
     for fold_index in range(0, 5):
-        dataset_name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
+        if data_args.do_all:
+            dataset_name = f"PoolC/all-clone-detection_v2"
+        else: # kfold is implmented
+            dataset_name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
+
         dset = load_dataset(dataset_name, use_auth_token=True)
-        random_numbers_train = np.random.randint(
-            0, len(dset["train"]), int(179000 * 5)
-        )  # can be set as a parameter if K-Fold is used
-        random_numbers_val = np.random.randint(
-            0, len(dset["val"]), int(179000)
-        )  # can be set as a parameter if K-Fold is used
-        dset["train"] = dset["train"].select(random_numbers_train)
-        dset["val"] = dset["val"].select(random_numbers_val)
+
+        if data_args.do_all:
+            random_numbers_train = np.random.randint(
+                0, len(dset["train"]), int(179000 * 6)
+            )  # can be set as a parameter if K-Fold is used
+            dset["train"] = dset["train"].select(random_numbers_train)
+            dset["val"] = dset["val"]
+        else: # kfold is used
+            random_numbers_train = np.random.randint(
+                0, len(dset["train"]), int(179000 * 5)
+            )  # can be set as a parameter if K-Fold is used
+            dset["train"] = dset["train"].select(random_numbers_train)
+            random_numbers_val = np.random.randint(
+                0, len(dset["val"]), int(179000)
+            )  # can be set as a parameter if K-Fold is used
+            dset["val"] = dset["val"].select(random_numbers_val)
         print(dset)
 
         CPU_COUNT = multiprocessing.cpu_count() // 2
@@ -66,7 +78,6 @@ def main():
         if "bert" in PLM_NAME.lower():
             fn_preprocessor = FunctionPreprocessor()
             dset = dset.map(fn_preprocessor, batched=True, num_proc=CPU_COUNT)
-
             an_preprocessor = AnnotationPreprocessor()
             dset = dset.map(an_preprocessor, batched=True, num_proc=CPU_COUNT)
         elif "t5" in PLM_NAME.lower() or "bart" in PLM_NAME.lower():
@@ -127,10 +138,19 @@ def main():
 
             name += f"LR:{training_args.learning_rate}_BS:{training_args.per_device_train_batch_size}_WR:{training_args.warmup_ratio}_WD:{training_args.weight_decay}_"
             name += MODEL_NAME
-            name += f"_{fold_index+1}_fold"
+            if data_args.do_all:
+                name += "_all"
+            else:
+                name += f"_{fold_index+1}_fold"
             num_train = str(len(random_numbers_train))[:-3] + "k"
             name += f"_{num_train}"
-            training_args.output_dir = os.path.join(output_dir, f"{fold_index+1}_fold_{MODEL_NAME}")
+
+            if data_args.do_all:
+                training_args.output_dir = os.path.join(output_dir, f"all_{MODEL_NAME}")
+            else:
+                training_args.output_dir = os.path.join(
+                    output_dir, f"{fold_index+1}_fold_{MODEL_NAME}"
+                )
 
             wandb.init(
                 entity="poolc", project=logging_args.project_name, group=model_args.PLM, name=name
@@ -164,6 +184,10 @@ def main():
             trainer.evaluate()
             trainer.save_model(model_args.save_path)
             wandb.finish()
+        if data_args.do_all:
+            break
+        else:
+            pass
 
 
 def seed_everything(seed):

@@ -171,3 +171,28 @@ for fold_index, (train_index, test_index) in enumerate(kf.split(list_groups)):
 
     name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
     dataset_fold.push_to_hub(name, private=True)
+
+""" make all dataset """
+df_train_all = pd.concat([df_similar, df_different])
+# shuffle df_train_all
+df_train_all = df_train_all.sample(frac=1)
+# reset index for df_train_all
+df_train_all = df_train_all.reset_index(drop=True)
+
+df_val_all = pd.read_csv("/home/ubuntu/plclassification/sample_train.csv")
+# shuffle df_val_all
+df_val_all = df_val_all.sample(frac=1)
+# reset index for df_val_all
+df_val_all = df_val_all.reset_index(drop=True)
+df_train_all_pruned = df_train_all[["code1", "code2", "similar"]]
+print(df_train_all_pruned.shape, df_val_all.shape)
+assert df_train_all_pruned.columns == df_val_all.columns
+
+dataset_all = DatasetDict()
+dataset_train = Dataset.from_pandas(df_train_all_pruned)
+dataset_val = Dataset.from_pandas(df_val_all)
+dataset_all["train"] = dataset_train
+dataset_all["val"] = dataset_val
+
+name = f"PoolC/all-clone-detection_v2"
+dataset_all.push_to_hub(name, private=True)
