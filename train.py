@@ -38,7 +38,7 @@ def main():
     for fold_index in range(0, 5):
         if data_args.do_all:
             dataset_name = f"PoolC/all-clone-detection_v2"
-        else:
+        else: # kfold is implmented
             dataset_name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
 
         dset = load_dataset(dataset_name, use_auth_token=True)
@@ -49,7 +49,7 @@ def main():
             )  # can be set as a parameter if K-Fold is used
             dset["train"] = dset["train"].select(random_numbers_train)
             dset["val"] = dset["val"]
-        else:
+        else: # kfold is used
             random_numbers_train = np.random.randint(
                 0, len(dset["train"]), int(179000 * 5)
             )  # can be set as a parameter if K-Fold is used

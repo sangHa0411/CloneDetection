@@ -172,7 +172,7 @@ for fold_index, (train_index, test_index) in enumerate(kf.split(list_groups)):
     name = f"PoolC/{fold_index+1}-fold-clone-detection-600k-5fold"
     dataset_fold.push_to_hub(name, private=True)
 
-# make all dataset
+""" make all dataset """
 df_train_all = pd.concat([df_similar, df_different])
 # shuffle df_train_all
 df_train_all = df_train_all.sample(frac=1)
