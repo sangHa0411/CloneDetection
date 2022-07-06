@@ -18,6 +18,12 @@
 
 ![image-20220706112447683](./assets/README/image-20220706112447683.png)
 
+## EncoderBART and EncoderT5
+
+![image-20220706113646009](./assets/README/image-20220706113646009.png)
+
+![image-20220706113625385](./assets/README/image-20220706113625385.png)
+
 ### References
 
 - [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)
